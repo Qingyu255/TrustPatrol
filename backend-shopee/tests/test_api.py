@@ -20,8 +20,9 @@ class FakeAdkClient:
         self.sessions: list[tuple[str, str]] = []
         self.runs: list[tuple[str, str, str]] = []
 
-    async def create_session(self, user_id: str, session_id: str) -> None:
+    async def create_session(self, user_id: str, session_id: str) -> str:
         self.sessions.append((user_id, session_id))
+        return session_id
 
     async def stream_run(
         self,
@@ -132,10 +133,13 @@ class CopeeApiTest(unittest.TestCase):
         self.assertEqual(versions[-1]["title"], "Uniqlo Shirt Updated Twice")
 
     def _timeline_versions_from_last_run(self) -> list[dict]:
+        return self._case_from_last_run()["timeline"]
+
+    def _case_from_last_run(self) -> dict:
         self.assertTrue(self.adk.runs)
         message_text = self.adk.runs[-1][2]
-        timeline_text = message_text.split("Timeline:\n", 1)[1]
-        return [json.loads(line) for line in timeline_text.splitlines() if line.strip()]
+        case_text = message_text.split("Case:\n", 1)[1]
+        return json.loads(case_text)
 
 
 if __name__ == "__main__":

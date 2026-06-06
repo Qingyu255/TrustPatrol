@@ -61,7 +61,7 @@ npm run dev
 Open:
 
 ```txt
-http://127.0.0.1:5173
+http://127.0.0.1:5174
 ```
 
 In the Copee frontend, the seller can view their dashboard, create products,

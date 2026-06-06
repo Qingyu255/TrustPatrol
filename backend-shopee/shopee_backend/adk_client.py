@@ -7,18 +7,23 @@ import httpx
 
 
 class AdkClient:
-    def __init__(self, base_url: str, timeout_seconds: float = 60.0) -> None:
+    def __init__(self, base_url: str, app_name: str = "backend", timeout_seconds: float = 60.0) -> None:
         self.base_url = base_url.rstrip("/")
+        self.app_name = app_name
         self.timeout = httpx.Timeout(timeout_seconds, connect=10.0)
 
-    async def create_session(self, user_id: str, session_id: str) -> None:
-        url = f"{self.base_url}/apps/backend/users/{user_id}/sessions"
-        payload = {"session_id": session_id}
+    async def create_session(self, user_id: str, session_id: str) -> str:
+        url = f"{self.base_url}/apps/{self.app_name}/users/{user_id}/sessions"
+        payload = {"state": {"investigation_id": session_id}}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(url, json=payload)
-            if response.status_code in {200, 201, 409}:
-                return
+            if response.status_code == 409:
+                return session_id
             response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict) and data.get("id"):
+                return data["id"]
+            return session_id
 
     async def stream_run(
         self,
@@ -28,7 +33,7 @@ class AdkClient:
         message_text: str,
     ) -> AsyncIterator[str]:
         payload = {
-            "app_name": "backend",
+            "app_name": self.app_name,
             "user_id": user_id,
             "session_id": session_id,
             "streaming": True,
@@ -47,12 +52,23 @@ class AdkClient:
                         yield f"{line}\n\n"
 
 
-def format_investigation_prompt(timeline: dict, review_type: str) -> str:
-    versions = "\n".join(json.dumps(version) for version in timeline["versions"])
+def format_investigation_prompt(case: dict, review_type: str) -> str:
     return (
-        "Investigate this listing timeline and return structured JSON.\n\n"
+        "Run TrustPatrol Phase 2 investigation.\n\n"
+        "You are given a marketplace listing case with:\n"
+        "- listing timeline\n"
+        "- seller profile\n"
+        "- review profile\n"
+        "- image metadata\n\n"
+        "Tasks:\n"
+        "1. Compute structured signals.\n"
+        "2. Route to the appropriate specialist agents.\n"
+        "3. Explain which agents are invoked and skipped.\n"
+        "4. Run selected specialist agents.\n"
+        "5. Produce a LeadAdjudicator decision.\n"
+        "6. Produce an EnforcementActionAgent action log.\n"
+        "7. Return structured JSON only.\n\n"
         f"Review type: {review_type}\n\n"
-        "Timeline:\n"
-        f"{versions}"
+        "Case:\n"
+        f"{json.dumps(case)}"
     )
-

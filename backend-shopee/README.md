@@ -16,9 +16,14 @@ The service expects the ADK backend to be running separately:
 adk web --port 8001
 ```
 
+Shopee investigations call the TrustPatrol Phase 2 ADK app and send the
+listing timeline, seller profile, review profile, and image metadata as one
+case JSON payload.
+
 Environment variables:
 
 - `ADK_BASE_URL`, default `http://127.0.0.1:8001`
+- `ADK_APP_NAME`, default `backend`
 - `COPEE_CORS_ORIGINS`, comma-separated origins, default local demo ports
 - `SHOPEE_CORS_ORIGINS`, legacy alias supported for existing local scripts
 
