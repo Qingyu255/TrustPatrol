@@ -264,8 +264,10 @@ function ListingDetailsPage({
       >
         <Stack spacing={2}>
           <ChangeSummaryCard
+            caseFile={caseFile}
             changedFields={row.changed_fields}
             current={current}
+            listingId={row.listing_id}
             previous={previous}
           />
           <SpecialistEvidenceReview events={events} />
@@ -336,24 +338,95 @@ function DecisionHeader({ decision }: { decision: LeadDecision }) {
 }
 
 function ChangeSummaryCard({
+  caseFile,
   previous,
   current,
   changedFields,
+  listingId,
 }: {
+  caseFile: Phase2CaseFile | null;
   previous: ListingVersion | null;
   current: ListingVersion | null;
   changedFields: ChangedField[];
+  listingId: string;
 }) {
-  if (!previous || !current) {
+  const signals = caseFile?.timeline_diff.signals;
+  const isBaseline = Boolean(signals?.baseline_review || signals?.review_type === "baseline_review");
+
+  if (isBaseline) {
+    const version = current ?? previous;
+    const facts = [
+      ["listing", listingId],
+      ["review type", signals?.review_type ?? "baseline_review"],
+      ["status", version?.status ?? "created"],
+      ["title", version?.title ?? "-"],
+      ["brand", version?.brand ?? signals?.current_brand ?? "None"],
+      ["price", formatPrice(version?.price ?? signals?.current_price)],
+      ["image", version?.image_id ?? signals?.image_category ?? "-"],
+      ["seller", version?.seller_id ?? "-"],
+    ];
+
     return (
       <Card variant="outlined">
         <CardContent>
-          <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
-            Change Summary
-          </Typography>
-          <Alert severity="info" sx={{ mt: 1 }}>
-            Full v1/v2 listing timeline was not found in this ADK session.
-          </Alert>
+          <Stack spacing={1.5}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Box>
+                <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
+                  Baseline Listing Summary
+                </Typography>
+                <Typography sx={{ fontWeight: 850 }} variant="h6">
+                  Newly created listing review
+                </Typography>
+              </Box>
+              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
+                {changedFields.map((field) => (
+                  <TagChip key={field} label={field} tone={fieldTone(field)} />
+                ))}
+              </Stack>
+            </Stack>
+            <Stack spacing={1}>
+              {facts.map(([label, value]) => (
+                <SummaryFact key={label} label={label} value={String(value)} />
+              ))}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!previous || !current) {
+    const fallbackFacts = timelineDiffFacts(caseFile);
+    return (
+      <Card variant="outlined">
+        <CardContent>
+          <Stack spacing={1.5}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+              <Box>
+                <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
+                  Timeline Diff Summary
+                </Typography>
+                <Typography sx={{ fontWeight: 850 }} variant="h6">
+                  {caseFile?.timeline_diff.summary ?? "Timeline details unavailable"}
+                </Typography>
+              </Box>
+              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
+                {changedFields.map((field) => (
+                  <TagChip key={field} label={field} tone={fieldTone(field)} />
+                ))}
+              </Stack>
+            </Stack>
+            {fallbackFacts.length ? (
+              <Stack spacing={1}>
+                {fallbackFacts.map(([label, value]) => (
+                  <SummaryFact key={label} label={label} value={value} />
+                ))}
+              </Stack>
+            ) : (
+              <Alert severity="info">ADK did not return raw listing versions for this session.</Alert>
+            )}
+          </Stack>
         </CardContent>
       </Card>
     );
@@ -413,6 +486,19 @@ function ChangeSummaryCard({
   );
 }
 
+function SummaryFact({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ bgcolor: "grey.50", border: 1, borderColor: "divider", borderRadius: 2, p: 1.25 }}>
+      <Typography color="text.secondary" sx={{ fontWeight: 850 }} variant="caption">
+        {label}
+      </Typography>
+      <Typography sx={{ overflowWrap: "anywhere" }} variant="body2">
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
 function SpecialistEvidenceReview({ events }: { events: AgentEvent[] }) {
   return (
     <Accordion disableGutters variant="outlined">
@@ -432,31 +518,35 @@ function SpecialistEvidenceReview({ events }: { events: AgentEvent[] }) {
           {events.length === 0 ? (
             <Alert severity="info">No ADK events were returned for this session.</Alert>
           ) : (
-            events.map((event) => (
-              <Box
-                key={event.id}
-                sx={{
-                  border: 1,
-                  borderColor: "divider",
-                  borderLeft: 4,
-                  borderLeftColor: event.type === "final_recommendation" ? "primary.main" : "grey.300",
-                  borderRadius: 2,
-                  p: 1,
-                }}
-              >
-                <Typography color="text.secondary" sx={{ fontWeight: 800 }} variant="caption">
-                  {event.timestamp}
-                </Typography>
-                <Typography sx={{ fontWeight: 800 }} variant="body2">
-                  {event.title}
-                </Typography>
-                {event.message && (
-                  <Typography color="text.secondary" variant="caption">
-                    {event.message}
+            events.map((event) => {
+              const title = formatRuntimeEventTitle(event);
+              const message = formatRuntimeEventMessage(event);
+              return (
+                <Box
+                  key={event.id}
+                  sx={{
+                    border: 1,
+                    borderColor: "divider",
+                    borderLeft: 4,
+                    borderLeftColor: event.type === "final_recommendation" ? "primary.main" : "grey.300",
+                    borderRadius: 2,
+                    p: 1,
+                  }}
+                >
+                  <Typography color="text.secondary" sx={{ fontWeight: 800 }} variant="caption">
+                    {event.timestamp}
                   </Typography>
-                )}
-              </Box>
-            ))
+                  <Typography sx={{ fontWeight: 800 }} variant="body2">
+                    {title}
+                  </Typography>
+                  {message && (
+                    <Typography color="text.secondary" variant="caption">
+                      {message}
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })
           )}
         </Stack>
       </AccordionDetails>
@@ -678,14 +768,7 @@ function buildCaseFileView(caseFile: Phase2CaseFile): CaseFileView {
         : "The recommendation is calibrated to the available evidence.",
     falsePositiveGuardrail:
       "This is not a final guilt finding. Seller verification, appeal evidence, or reviewer override can reverse, narrow, or downgrade the action to avoid wrongly penalizing legitimate sellers.",
-    enforcementFacts: [
-      `Review queue: ${caseFile.enforcement_action_log.review_queue}.`,
-      `Seller message: ${caseFile.enforcement_action_log.seller_message_summary}`,
-      `Audit log: ${caseFile.enforcement_action_log.audit_log_summary}`,
-      ...caseFile.enforcement_action_log.actions.map((action) =>
-        `${formatAction(action.action)}: ${action.reason ?? action.status}`,
-      ),
-    ],
+    enforcementFacts: formatEnforcementSentences(caseFile.enforcement_action_log),
   };
 }
 
@@ -694,8 +777,11 @@ function evidenceLaneFromFinding(finding: SpecialistFinding): EvidenceLane {
     title: agentTitle(finding.agent),
     severity: finding.risk_level,
     tone: riskTone(finding.risk_level),
-    summary: finding.finding,
-    facts: [...finding.evidence, finding.uncertainty].filter(Boolean),
+    summary: cleanEvidenceText(finding.finding),
+    facts: [
+      ...finding.evidence.map(cleanEvidenceText),
+      cleanUncertaintyText(finding.uncertainty),
+    ].filter(Boolean),
   };
 }
 
@@ -712,6 +798,117 @@ function timelineFactsFromCase(caseFile: Phase2CaseFile): string[] {
   if (signals.image_swapped) facts.push("Image changed after approval.");
   if (signals.post_approval_edit) facts.push("Listing was edited after approval.");
   return facts;
+}
+
+function timelineDiffFacts(caseFile: Phase2CaseFile | null): Array<[string, string]> {
+  if (!caseFile) return [];
+  const signals = caseFile.timeline_diff.signals;
+  return [
+    ["listing", caseFile.listing_id],
+    ["review type", signals.review_type ?? "-"],
+    ["changed fields", caseFile.timeline_diff.changed_fields.join(", ") || "-"],
+    ["previous brand", signals.previous_brand ?? "None"],
+    ["current brand", signals.current_brand ?? "None"],
+    ["previous price", formatPrice(signals.previous_price)],
+    ["current price", formatPrice(signals.current_price)],
+    ["price drop", `${signals.price_drop_pct ?? 0}%`],
+    ["keywords", signals.counterfeit_keywords?.join(", ") || "None"],
+    ["image category", signals.image_category ?? "-"],
+  ];
+}
+
+function formatEnforcementSentences(log: Phase2CaseFile["enforcement_action_log"]): string[] {
+  const actionSentences = log.actions.map(formatActionSentence);
+  const queueSentence =
+    !log.review_queue || log.review_queue === "None"
+      ? "No review queue is needed."
+      : `The case should go to the ${stripTrailingPeriod(log.review_queue)} queue.`;
+  const sellerSentence = isNoMessage(log.seller_message_summary)
+    ? "No seller message is needed."
+    : `The seller message should say: ${stripTrailingPeriod(log.seller_message_summary)}.`;
+  const auditSentence = log.audit_log_summary
+    ? `The audit log records that ${lowercaseFirst(stripTrailingPeriod(log.audit_log_summary))}.`
+    : "The audit log should be updated.";
+
+  return uniqueSentences([...actionSentences, queueSentence, sellerSentence, auditSentence]);
+}
+
+function formatActionSentence(action: Phase2CaseFile["enforcement_action_log"]["actions"][number]): string {
+  if (action.action === "ALLOW_LISTING") return "The listing can remain live.";
+  if (action.action === "TEMPORARY_SUPPRESSION") return "The listing should be temporarily suppressed pending review.";
+  if (action.action === "CREATE_REVIEW_TICKET") return "A human review ticket should be created.";
+  if (action.action === "REQUEST_SELLER_VERIFICATION") return "Seller verification should be requested.";
+  if (action.action === "MONITOR_LISTING") return "The listing should be monitored.";
+  return `${formatAction(action.action)} should be recorded.`;
+}
+
+function formatRuntimeEventTitle(event: AgentEvent): string {
+  if (event.type === "human_review_decision") return "Human decision recorded";
+  if (event.type === "final_recommendation") return "Final case file ready";
+  if (event.agent === "TimelineDiffAgent") return "Timeline checked";
+  if (event.agent === "InvestigationRouterAgent") return "Evidence routing complete";
+  if (event.agent === "LeadAdjudicatorAgent") return "Risk decision prepared";
+  if (event.agent === "EnforcementActionAgent") return "Enforcement guidance prepared";
+  if (event.agent === "BrandProtectionAgent") return "Brand evidence reviewed";
+  if (event.agent === "PricingAgent") return "Pricing evidence reviewed";
+  if (event.agent === "VisualEvidenceAgent") return "Visual evidence reviewed";
+  if (event.agent === "SellerTrustAgent") return "Seller trust reviewed";
+  if (event.agent === "ReviewIntegrityAgent") return "Review integrity checked";
+  if (event.agent === "TrustPatrolRootAgent") return event.type === "agent_started" ? "Case review started" : "Case review updated";
+  return cleanEventTitle(event.title);
+}
+
+function formatRuntimeEventMessage(event: AgentEvent): string {
+  const message = event.message?.trim();
+  if (!message) return "";
+  if (message.includes("Investigate this listing timeline")) return "Listing timeline submitted for review.";
+  if (message.includes("Computing listing timeline")) return "Checking what changed in the listing.";
+  if (message.includes("Routing the case")) return "Choosing the evidence checks needed for this case.";
+  if (message.includes("Combining specialist evidence")) return "Preparing the final risk recommendation.";
+  if (message.includes("Preparing simulated enforcement")) return "Preparing suggested follow-up actions.";
+  if (message.startsWith("{") || message.startsWith("[")) return "Structured case data was received.";
+  return truncateSentence(cleanEvidenceText(message), 140);
+}
+
+function cleanEvidenceText(value: string) {
+  return stripTrailingPeriod(value.replace(/\s+/g, " ").trim()) + ".";
+}
+
+function cleanUncertaintyText(value: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  if (text.toLowerCase().includes("does not prove")) return "This evidence is a risk signal, not proof on its own.";
+  if (text.toLowerCase().includes("insufficient")) return "This evidence should be combined with other signals.";
+  return truncateSentence(cleanEvidenceText(text), 150);
+}
+
+function cleanEventTitle(value: string) {
+  return value
+    .replace("TrustPatrolRootAgent event", "Case review updated")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace("Agent event", "updated")
+    .trim();
+}
+
+function truncateSentence(value: string, maxLength: number) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1).trim()}…`;
+}
+
+function stripTrailingPeriod(value: string) {
+  return value.trim().replace(/[.。]+$/, "");
+}
+
+function lowercaseFirst(value: string) {
+  return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
+}
+
+function isNoMessage(value: string) {
+  return !value || value.toLowerCase().includes("no seller message");
+}
+
+function uniqueSentences(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function pendingDecision(row: ReviewQueueRow): LeadDecision {
