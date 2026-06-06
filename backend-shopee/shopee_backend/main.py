@@ -18,11 +18,11 @@ from .models import (
     ListingPatch,
     SellerProfile,
     SellerProfilePatch,
-    listing_timeline_payload,
+    investigation_case_payload,
 )
 from .store import InMemoryStore, InvestigationRecord
 
-DEMO_USER_ID = "shopee-demo"
+DEMO_USER_ID = "copee-demo"
 
 
 def create_app(
@@ -30,13 +30,22 @@ def create_app(
     store: InMemoryStore | None = None,
     adk_client: AdkClient | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Shopee Demo Marketplace Backend")
+    app = FastAPI(title="Copee Demo Marketplace Backend")
     app.state.store = store or InMemoryStore()
-    app.state.adk_client = adk_client or AdkClient(os.getenv("ADK_BASE_URL", "http://127.0.0.1:8001"))
+    app.state.adk_client = adk_client or AdkClient(
+        os.getenv("ADK_BASE_URL", "http://127.0.0.1:8001"),
+        os.getenv("ADK_APP_NAME", "backend"),
+    )
 
     cors_origins = {
         origin.strip()
-        for origin in os.getenv("ALLOW_CORS_ORIGINS", "").split(",")
+        for origin in ",".join(
+            [
+                os.getenv("ALLOW_CORS_ORIGINS", ""),
+                os.getenv("COPEE_CORS_ORIGINS", ""),
+                os.getenv("SHOPEE_CORS_ORIGINS", ""),
+            ]
+        ).split(",")
         if origin.strip()
     }
     cors_origins.update(
@@ -57,7 +66,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "backend-shopee"}
+        return {"status": "ok", "service": "backend-copee"}
 
     @app.get("/listings", response_model=list[Listing])
     async def list_listings() -> list[Listing]:
@@ -109,8 +118,9 @@ async def _trigger_investigation(app: FastAPI, listing: Listing) -> ListingMutat
     current = listing.current
     review_type = "baseline_review" if len(listing.versions) == 1 else "post_approval_edit"
     investigation_id = f"inv-{listing.listing_id}-v{current.version}"
-    timeline = listing_timeline_payload(listing)
-    message_text = format_investigation_prompt(timeline, review_type)
+    seller_profile = await app.state.store.get_profile()
+    case = investigation_case_payload(listing, seller_profile)
+    message_text = format_investigation_prompt(case, review_type)
     record = InvestigationRecord(
         investigation_id=investigation_id,
         listing_id=listing.listing_id,
@@ -131,10 +141,10 @@ async def _trigger_investigation(app: FastAPI, listing: Listing) -> ListingMutat
 
 async def _run_adk_investigation(app: FastAPI, record: InvestigationRecord) -> None:
     try:
-        await app.state.adk_client.create_session(DEMO_USER_ID, record.investigation_id)
+        adk_session_id = await app.state.adk_client.create_session(DEMO_USER_ID, record.investigation_id)
         async for event in app.state.adk_client.stream_run(
             user_id=DEMO_USER_ID,
-            session_id=record.investigation_id,
+            session_id=adk_session_id or record.investigation_id,
             message_text=record.message_text,
         ):
             await app.state.store.append_event(record.investigation_id, event)

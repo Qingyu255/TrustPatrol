@@ -1,7 +1,7 @@
-# Shopee Demo Backend
+# Copee Demo Backend
 
 Standalone marketplace simulation service for the TrustPatrol demo. It owns the
-seller-facing Shopee-like listing/profile APIs and triggers the existing ADK
+seller-facing Copee-like listing/profile APIs and triggers the existing ADK
 investigation backend whenever listings are created or edited.
 
 Run from the repo root:
@@ -16,10 +16,16 @@ The service expects the ADK backend to be running separately:
 adk web --port 8001
 ```
 
+Shopee investigations call the TrustPatrol Phase 2 ADK app and send the
+listing timeline, seller profile, review profile, and image metadata as one
+case JSON payload.
+
 Environment variables:
 
 - `ADK_BASE_URL`, default `http://127.0.0.1:8001`
-- `SHOPEE_CORS_ORIGINS`, comma-separated origins, default local demo ports
+- `ADK_APP_NAME`, default `backend`
+- `COPEE_CORS_ORIGINS`, comma-separated origins, default local demo ports
+- `SHOPEE_CORS_ORIGINS`, legacy alias supported for existing local scripts
 
 Seller-facing endpoints:
 

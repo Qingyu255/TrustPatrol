@@ -1,2 +1,1 @@
-"""Shopee marketplace simulation backend for the TrustPatrol demo."""
-
+"""Copee marketplace simulation backend for the TrustPatrol demo."""

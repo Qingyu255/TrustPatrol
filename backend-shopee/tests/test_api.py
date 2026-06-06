@@ -20,8 +20,9 @@ class FakeAdkClient:
         self.sessions: list[tuple[str, str]] = []
         self.runs: list[tuple[str, str, str]] = []
 
-    async def create_session(self, user_id: str, session_id: str) -> None:
+    async def create_session(self, user_id: str, session_id: str) -> str:
         self.sessions.append((user_id, session_id))
+        return session_id
 
     async def stream_run(
         self,
@@ -35,7 +36,7 @@ class FakeAdkClient:
         yield 'data: {"content":{"parts":[{"functionResponse":{"name":"detect_brand_injection","response":{}}}]}}\n\n'
 
 
-class ShopeeApiTest(unittest.TestCase):
+class CopeeApiTest(unittest.TestCase):
     def setUp(self) -> None:
         self.adk = FakeAdkClient()
         self.app = create_app(store=InMemoryStore(), adk_client=self.adk)
@@ -111,14 +112,14 @@ class ShopeeApiTest(unittest.TestCase):
         response = self.client.patch(
             "/seller/profile",
             json={
-                "shop_name": "Shopee Demo Outlet",
+                "shop_name": "Copee Demo Outlet",
                 "description": "Updated seller profile for demo.",
             },
         )
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["shop_name"], "Shopee Demo Outlet")
+        self.assertEqual(body["shop_name"], "Copee Demo Outlet")
         self.assertEqual(body["description"], "Updated seller profile for demo.")
 
     def test_investigation_payload_only_includes_previous_and_latest_versions(self) -> None:
@@ -132,10 +133,13 @@ class ShopeeApiTest(unittest.TestCase):
         self.assertEqual(versions[-1]["title"], "Uniqlo Shirt Updated Twice")
 
     def _timeline_versions_from_last_run(self) -> list[dict]:
+        return self._case_from_last_run()["timeline"]
+
+    def _case_from_last_run(self) -> dict:
         self.assertTrue(self.adk.runs)
         message_text = self.adk.runs[-1][2]
-        timeline_text = message_text.split("Timeline:\n", 1)[1]
-        return [json.loads(line) for line in timeline_text.splitlines() if line.strip()]
+        case_text = message_text.split("Case:\n", 1)[1]
+        return json.loads(case_text)
 
 
 if __name__ == "__main__":
