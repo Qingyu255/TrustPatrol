@@ -7,7 +7,7 @@ from google.adk.events import Event
 from google.genai import types
 from pydantic import Field
 
-from backend.shared.phase2_engine import (
+from backend.shared.investigation_engine import (
     SPECIALIST_BUILDERS,
     build_investigation_plan,
     build_phase2_case_file,
@@ -49,7 +49,7 @@ def _content_event(
     )
 
 
-class Phase2DeterministicAgent(BaseAgent):
+class DeterministicAgent(BaseAgent):
     agent_kind: str = Field(description="The deterministic Phase 2 agent kind.")
 
     async def _run_async_impl(

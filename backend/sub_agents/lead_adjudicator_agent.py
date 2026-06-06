@@ -1,7 +1,7 @@
-from backend.sub_agents.phase2_base import Phase2DeterministicAgent
+from backend.custom.deterministic_agent import DeterministicAgent
 
 
-lead_adjudicator_agent = Phase2DeterministicAgent(
+lead_adjudicator_agent = DeterministicAgent(
     name="LeadAdjudicatorAgent",
     description="Combines selected specialist findings into an appeal-defensible moderation decision.",
     agent_kind="lead",

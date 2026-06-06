@@ -10,8 +10,8 @@ from pydantic import Field
 
 from backend.config import Config
 from backend.shared.llm_enrichment import SPECIALIST_ANALYSIS_SCHEMA, _safe_call
-from backend.shared.phase2_engine import build_timeline_signals, extract_case_from_text
-from backend.sub_agents.phase2_base import _content_event, _latest_user_text
+from backend.shared.investigation_engine import build_timeline_signals, extract_case_from_text
+from backend.custom.deterministic_agent import _content_event, _latest_user_text
 
 
 ToolSpec = tuple[str, Callable[[dict[str, Any]], dict[str, Any]]]

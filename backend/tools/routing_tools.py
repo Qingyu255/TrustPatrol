@@ -1,6 +1,6 @@
 from typing import Any
 
-from backend.shared.phase2_engine import build_investigation_plan, build_timeline_signals
+from backend.shared.investigation_engine import build_investigation_plan, build_timeline_signals
 
 
 def compute_timeline_signals(case: dict[str, Any]) -> dict:

@@ -34,16 +34,28 @@ def create_app(
     app.state.store = store or InMemoryStore()
     app.state.adk_client = adk_client or AdkClient(os.getenv("ADK_BASE_URL", "http://127.0.0.1:8001"))
 
-    cors_origins = os.getenv(
-        "COPEE_CORS_ORIGINS",
-        os.getenv(
-            "SHOPEE_CORS_ORIGINS",
-            "http://127.0.0.1:5173,http://localhost:5173",
-        ),
-    ).split(",")
+    cors_origins = {
+        origin.strip()
+        for origin in ",".join(
+            [
+                os.getenv("ALLOW_CORS_ORIGINS", ""),
+                os.getenv("COPEE_CORS_ORIGINS", ""),
+                os.getenv("SHOPEE_CORS_ORIGINS", ""),
+            ]
+        ).split(",")
+        if origin.strip()
+    }
+    cors_origins.update(
+        {
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "http://127.0.0.1:5174",
+            "http://localhost:5174",
+        }
+    )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[origin.strip() for origin in cors_origins if origin.strip()],
+        allow_origins=sorted(cors_origins),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

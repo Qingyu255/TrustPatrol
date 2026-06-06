@@ -140,6 +140,11 @@ def _previous_current(listing_timeline: str | dict[str, Any] | list[dict[str, An
     return versions[-2], versions[-1]
 
 
+def _current_version(listing_timeline: str | dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any] | None:
+    versions = _coerce_timeline(listing_timeline)
+    return versions[-1] if versions else None
+
+
 def _insufficient_versions(message: str = "At least two listing versions are required.") -> dict:
     return {
         "error": "insufficient_versions",
@@ -155,11 +160,21 @@ def detect_brand_injection(listing_timeline: str) -> dict:
     """Detects whether a brand was added or changed after an approved version."""
     try:
         previous, current = _previous_current(listing_timeline)
-    except ValueError as error:
+    except ValueError:
+        current = _current_version(listing_timeline) or {}
+        current_brand = _norm(current.get("brand"))
         return {
-            **_insufficient_versions(str(error)),
+            "baseline_review": True,
             "brand_injection": False,
+            "baseline_brand_claim": bool(current_brand),
             "brand_added": None,
+            "previous_brand": None,
+            "current_brand": current_brand or None,
+            "message": (
+                f"Baseline listing claims brand {current_brand}."
+                if current_brand
+                else "Baseline listing has no brand claim."
+            ),
         }
     previous_brand = _norm(previous.get("brand"))
     current_brand = _norm(current.get("brand"))
@@ -172,7 +187,9 @@ def detect_brand_injection(listing_timeline: str) -> dict:
         else "No brand injection detected."
     )
     return {
+        "baseline_review": False,
         "brand_injection": brand_injection,
+        "baseline_brand_claim": False,
         "brand_added": current_brand if brand_injection else None,
         "previous_brand": previous_brand or None,
         "current_brand": current_brand or None,
@@ -214,24 +231,31 @@ def detect_counterfeit_keywords(listing_timeline: str) -> dict:
     """Detects counterfeit-associated keywords introduced in title or description."""
     try:
         previous, current = _previous_current(listing_timeline)
-    except ValueError as error:
-        return {
-            **_insufficient_versions(str(error)),
-            "counterfeit_keywords": [],
-        }
-    previous_text = f"{previous.get('title', '')} {previous.get('description', '')}".lower()
+        previous_text = f"{previous.get('title', '')} {previous.get('description', '')}".lower()
+        message_prefix = "Counterfeit-associated keywords appeared: "
+        empty_message = "No newly introduced counterfeit-associated keywords detected."
+        baseline_review = False
+    except ValueError:
+        current = _current_version(listing_timeline) or {}
+        previous_text = ""
+        message_prefix = "Baseline listing contains counterfeit-associated keywords: "
+        empty_message = "No counterfeit-associated keywords detected in baseline listing."
+        baseline_review = True
     current_text = f"{current.get('title', '')} {current.get('description', '')}".lower()
     introduced = []
     for keyword in COUNTERFEIT_KEYWORDS:
         pattern = re.escape(keyword.lower())
-        if re.search(pattern, current_text) and not re.search(pattern, previous_text):
+        if re.search(pattern, current_text) and (
+            baseline_review or not re.search(pattern, previous_text)
+        ):
             introduced.append(keyword)
     return {
+        "baseline_review": baseline_review,
         "counterfeit_keywords": introduced,
         "message": (
-            "Counterfeit-associated keywords appeared: " + ", ".join(introduced) + "."
+            message_prefix + ", ".join(introduced) + "."
             if introduced
-            else "No newly introduced counterfeit-associated keywords detected."
+            else empty_message
         ),
     }
 
@@ -240,10 +264,20 @@ def detect_image_swap(listing_timeline: str) -> dict:
     """Detects whether the listing image changed after approval."""
     try:
         previous, current = _previous_current(listing_timeline)
-    except ValueError as error:
+    except ValueError:
+        current = _current_version(listing_timeline) or {}
+        current_image_id = _norm(current.get("image_id"))
         return {
-            **_insufficient_versions(str(error)),
+            "baseline_review": True,
             "image_swapped": False,
+            "text_fields_unchanged": False,
+            "previous_image_id": None,
+            "current_image_id": current_image_id or None,
+            "message": (
+                f"Baseline listing image is {current_image_id}."
+                if current_image_id
+                else "Baseline listing has no image ID."
+            ),
         }
     previous_image_id = _norm(previous.get("image_id"))
     current_image_id = _norm(current.get("image_id"))
@@ -261,6 +295,7 @@ def detect_image_swap(listing_timeline: str) -> dict:
     else:
         message = "Listing image did not change."
     return {
+        "baseline_review": False,
         "image_swapped": image_swapped,
         "text_fields_unchanged": text_fields_unchanged,
         "previous_image_id": previous_image_id,
@@ -273,13 +308,17 @@ def detect_post_approval_edit(listing_timeline: str) -> dict:
     """Detects whether an approved listing was edited into a later version."""
     try:
         previous, current = _previous_current(listing_timeline)
-    except ValueError as error:
+    except ValueError:
         return {
-            **_insufficient_versions(str(error)),
+            "baseline_review": True,
             "post_approval_edit": False,
+            "previous_status": None,
+            "current_status": (_current_version(listing_timeline) or {}).get("status"),
+            "message": "Baseline listing creation; no post-approval edit exists yet.",
         }
     post_approval_edit = previous.get("status") == "approved" and current.get("version") != previous.get("version")
     return {
+        "baseline_review": False,
         "post_approval_edit": post_approval_edit,
         "previous_status": previous.get("status"),
         "current_status": current.get("status"),
@@ -303,6 +342,7 @@ def build_evidence(listing_timeline: str) -> dict:
     for result in (brand, price, keywords, image, post_approval):
         if (
             result.get("brand_injection")
+            or result.get("baseline_brand_claim")
             or result.get("price_anomaly")
             or result.get("counterfeit_keywords")
             or result.get("image_swapped")
@@ -313,6 +353,7 @@ def build_evidence(listing_timeline: str) -> dict:
     return {
         "signals": {
             "brand_injection": brand["brand_injection"],
+            "baseline_brand_claim": brand.get("baseline_brand_claim", False),
             "brand_added": brand["brand_added"],
             "price_drop_pct": price["price_drop_pct"],
             "price_anomaly": price["price_anomaly"],

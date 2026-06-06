@@ -54,10 +54,12 @@ def normalize_case(case: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def _previous_current(case: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def _previous_current(case: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     timeline = case.get("timeline", [])
-    if len(timeline) < 2:
-        raise ValueError("Phase 2 cases require at least two timeline versions.")
+    if not timeline:
+        raise ValueError("Cases require at least one listing version.")
+    if len(timeline) == 1:
+        return None, timeline[-1]
     return timeline[-2], timeline[-1]
 
 
@@ -95,32 +97,45 @@ def build_timeline_signals(case: dict[str, Any]) -> dict[str, Any]:
     review = case.get("review_profile", {})
     image = case.get("image_metadata", {})
 
-    previous_brand = _brand(previous.get("brand"))
+    is_baseline_review = previous is None
+    previous_brand = _brand(previous.get("brand")) if previous else ""
     current_brand = _brand(current.get("brand"))
-    brand_added = bool(current_brand and previous_brand.lower() != current_brand.lower())
-    previous_price = float(previous.get("price") or 0)
+    current_text = _text(current)
+    brand_added = bool(
+        current_brand
+        and not is_baseline_review
+        and previous_brand.lower() != current_brand.lower()
+    )
+    baseline_brand_claim = bool(current_brand and is_baseline_review)
+    previous_price = float(previous.get("price") or 0) if previous else 0
     current_price = float(current.get("price") or 0)
     price_drop_pct = round(max((previous_price - current_price) / previous_price * 100, 0), 1) if previous_price else 0
-    previous_text = _text(previous)
-    current_text = _text(current)
+    previous_text = _text(previous) if previous else ""
     introduced_keywords = [
         keyword
         for keyword in COUNTERFEIT_KEYWORDS
-        if keyword.lower() in current_text and keyword.lower() not in previous_text
+        if keyword.lower() in current_text
+        and (is_baseline_review or keyword.lower() not in previous_text)
     ]
     image_swapped = bool(
         image.get("image_changed")
-        or previous.get("image_id") != current.get("image_id")
+        or (previous and previous.get("image_id") != current.get("image_id"))
     )
     text_fields_unchanged = (
-        previous.get("title") == current.get("title")
+        not is_baseline_review
+        and previous.get("title") == current.get("title")
         and previous.get("description") == current.get("description")
-        and _brand(previous.get("brand")).lower() == _brand(current.get("brand")).lower()
-        and float(previous.get("price") or 0) == float(current.get("price") or 0)
+        and _brand(previous.get("brand")).lower()
+        == _brand(current.get("brand")).lower()
+        and float(previous.get("price") or 0)
+        == float(current.get("price") or 0)
     )
 
     return {
+        "review_type": "baseline_review" if is_baseline_review else "post_approval_edit",
+        "baseline_review": is_baseline_review,
         "brand_added": brand_added,
+        "baseline_brand_claim": baseline_brand_claim,
         "brand_added_value": current_brand if brand_added else None,
         "previous_brand": previous_brand or None,
         "current_brand": current_brand or None,
@@ -130,7 +145,11 @@ def build_timeline_signals(case: dict[str, Any]) -> dict[str, Any]:
         "counterfeit_keywords": introduced_keywords,
         "image_swapped": image_swapped,
         "text_fields_unchanged": text_fields_unchanged,
-        "post_approval_edit": previous.get("status") == "approved" and previous.get("version") != current.get("version"),
+        "post_approval_edit": (
+            bool(previous)
+            and previous.get("status") == "approved"
+            and previous.get("version") != current.get("version")
+        ),
         "seller_prior_flags": int(seller.get("prior_flags") or 0),
         "seller_age_days": int(seller.get("seller_age_days") or 0),
         "similar_listing_count_24h": int(seller.get("similar_listing_count_24h") or 0),
@@ -153,20 +172,29 @@ def build_investigation_plan(case: dict[str, Any], signals: dict[str, Any] | Non
 
     invoked = []
     reasons = {}
-    if signals["brand_added"] or signals["counterfeit_keywords"]:
+    baseline = signals.get("baseline_review", False)
+    if signals["brand_added"] or signals["counterfeit_keywords"] or signals.get("baseline_brand_claim"):
         invoked.append("BrandProtectionAgent")
-        reasons["BrandProtectionAgent"] = "Brand or counterfeit-associated language changed after approval."
+        reasons["BrandProtectionAgent"] = (
+            "Brand or counterfeit-associated language is present in the baseline listing."
+            if baseline
+            else "Brand or counterfeit-associated language changed after approval."
+        )
     if signals["price_drop_pct"] >= 30:
         invoked.append("PricingAgent")
         reasons["PricingAgent"] = f"Price dropped by {signals['price_drop_pct']:g}%."
     visual_trigger = (
         signals["image_contains_brand_logo"]
         or signals["image_contains_packaging"]
-        or (signals["image_swapped"] and signals["text_fields_unchanged"])
+        or (not baseline and signals["image_swapped"] and signals["text_fields_unchanged"])
     )
     if visual_trigger:
         invoked.append("VisualEvidenceAgent")
-        reasons["VisualEvidenceAgent"] = "Image metadata or image ID changed after approval."
+        reasons["VisualEvidenceAgent"] = (
+            "Baseline image metadata contains brand logo or packaging signals."
+            if baseline
+            else "Image metadata or image ID changed after approval."
+        )
     if seller_trigger:
         invoked.append("SellerTrustAgent")
         reasons["SellerTrustAgent"] = "Seller metadata contains trust-risk signals."
@@ -202,22 +230,27 @@ def build_investigation_plan(case: dict[str, Any], signals: dict[str, Any] | Non
 def timeline_diff(case: dict[str, Any]) -> dict[str, Any]:
     case = normalize_case(case)
     previous, current = _previous_current(case)
-    changed_fields = [
-        field
-        for field in ("title", "description", "brand", "price", "image_id", "status")
-        if previous.get(field) != current.get(field)
-    ]
+    if previous is None:
+        changed_fields = ["created_listing"]
+        summary = "Baseline review for newly created listing."
+    else:
+        changed_fields = [
+            field
+            for field in ("title", "description", "brand", "price", "image_id", "status")
+            if previous.get(field) != current.get(field)
+        ]
+        summary = (
+            "Listing changed after approval across: " + ", ".join(changed_fields)
+            if changed_fields
+            else "No material listing-field changes detected."
+        )
     return {
         "agent": "TimelineDiffAgent",
         "status": "completed",
         "listing_id": case.get("listing_id"),
         "changed_fields": changed_fields,
         "signals": build_timeline_signals(case),
-        "summary": (
-            "Listing changed after approval across: " + ", ".join(changed_fields)
-            if changed_fields
-            else "No material listing-field changes detected."
-        ),
+        "summary": summary,
     }
 
 
@@ -226,11 +259,15 @@ def brand_finding(case: dict[str, Any], signals: dict[str, Any] | None = None) -
     evidence = []
     if signals["brand_added"]:
         evidence.append(f"Brand changed from {signals['previous_brand']} to {signals['brand_added_value']}.")
+    if signals.get("baseline_brand_claim"):
+        evidence.append(f"Baseline listing claims brand {signals['current_brand']}.")
     if signals["counterfeit_keywords"]:
-        evidence.append("Replica-associated terms appeared: " + ", ".join(signals["counterfeit_keywords"]) + ".")
+        evidence.append("Replica-associated terms are present: " + ", ".join(signals["counterfeit_keywords"]) + ".")
     contribution = 0
     if signals["brand_added"]:
         contribution += 16
+    if signals.get("baseline_brand_claim"):
+        contribution += 8
     if signals["counterfeit_keywords"]:
         contribution += 14
     contribution = min(contribution, 30)
@@ -238,8 +275,8 @@ def brand_finding(case: dict[str, Any], signals: dict[str, Any] | None = None) -
         "BrandProtectionAgent",
         contribution,
         0.88 if contribution >= 25 else 0.74,
-        "Brand or IP risk signals were introduced after approval." if evidence else "No material brand/IP risk signal was found.",
-        evidence or ["No brand injection or newly introduced counterfeit-associated terms were detected."],
+        "Brand or IP risk signals were found." if evidence else "No material brand/IP risk signal was found.",
+        evidence or ["No brand claim or counterfeit-associated terms were detected."],
         "Brand terms and authenticity language are risk signals; they do not prove counterfeit status.",
     )
 
@@ -267,6 +304,8 @@ def visual_finding(case: dict[str, Any], signals: dict[str, Any] | None = None) 
     evidence = []
     if signals["image_swapped"]:
         evidence.append("Image changed after approval.")
+    if signals.get("baseline_review"):
+        evidence.append("Baseline visual metadata was evaluated.")
     if signals["image_contains_brand_logo"]:
         evidence.append("Image metadata indicates a brand logo is present.")
     if signals["image_contains_packaging"]:
@@ -285,7 +324,7 @@ def visual_finding(case: dict[str, Any], signals: dict[str, Any] | None = None) 
         "VisualEvidenceAgent",
         contribution,
         0.66 if contribution else 0.55,
-        "Image evidence shows post-approval visual drift." if evidence else "No image-risk metadata was detected.",
+        "Image evidence contains visual risk metadata." if evidence else "No image-risk metadata was detected.",
         evidence or ["Image metadata did not indicate visual risk."],
         "Visual evidence is insufficient on its own to verify authenticity.",
     )
