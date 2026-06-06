@@ -160,6 +160,10 @@ venv.bak/
 # ADK local runtime state
 .adk/
 
+# Frontend dependencies/builds
+node_modules/
+frontend-shopee/dist/
+
 # Spyder project settings
 .spyderproject
 .spyproject

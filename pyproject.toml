@@ -5,5 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.124.0",
     "google-adk[extensions]>=2.2.0",
+    "httpx>=0.28.0",
+    "uvicorn[standard]>=0.38.0",
 ]
