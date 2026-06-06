@@ -22,7 +22,10 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const API_BASE = import.meta.env.VITE_SHOPEE_API_BASE ?? "http://127.0.0.1:8000";
+const API_BASE =
+  import.meta.env.VITE_COPEE_API_BASE ??
+  import.meta.env.VITE_SHOPEE_API_BASE ??
+  "http://127.0.0.1:8000";
 
 type ListingStatus = "draft" | "approved" | "suppressed";
 type Page = "dashboard" | "listings" | "detail" | "create" | "edit" | "profile" | "profile-edit";
@@ -129,7 +132,7 @@ function App() {
       fetch(`${API_BASE}/seller/profile`),
     ]);
     if (!listingResponse.ok || !profileResponse.ok) {
-      setError("Could not connect to backend-shopee.");
+      setError("Could not connect to backend-copee.");
       return;
     }
     const listingData = (await listingResponse.json()) as Listing[];
@@ -193,7 +196,7 @@ function App() {
     });
     setSelectedId(result.listing.listing_id);
     setPage("detail");
-    showToast("Listing saved. Shopee moderation checks started automatically.");
+    showToast("Listing saved. Copee moderation checks started automatically.");
   }
 
   async function saveProfile() {
@@ -221,7 +224,7 @@ function App() {
         </button>
         <div className="seller-logo" onClick={() => setPage("dashboard")}>
           <ShoppingBag size={26} />
-          <span>Shopee Seller Centre</span>
+          <span>Copee Seller Centre</span>
         </div>
         <nav>
           <NavButton active={page === "dashboard"} icon={<LayoutDashboard size={18} />} label="Home" onClick={() => setPage("dashboard")} />
@@ -374,7 +377,7 @@ function Dashboard({
       <section className="market-band">
         <div className="section-heading">
           <h2>Seller Centre shortcuts</h2>
-          <p>Common Shopee product categories for quick listing setup.</p>
+          <p>Common Copee product categories for quick listing setup.</p>
         </div>
         <div className="category-strip">
           {categoryTiles.map((category) => (
@@ -579,7 +582,7 @@ function ListingFormPage({
             <input value="0.5 kg" readOnly />
           </Field>
           <Field label="Shipping Channel">
-            <input value="Shopee Xpress" readOnly />
+            <input value="Copee Xpress" readOnly />
           </Field>
         </div>
       </section>

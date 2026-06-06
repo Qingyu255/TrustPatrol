@@ -22,7 +22,7 @@ from .models import (
 )
 from .store import InMemoryStore, InvestigationRecord
 
-DEMO_USER_ID = "shopee-demo"
+DEMO_USER_ID = "copee-demo"
 
 
 def create_app(
@@ -30,13 +30,16 @@ def create_app(
     store: InMemoryStore | None = None,
     adk_client: AdkClient | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Shopee Demo Marketplace Backend")
+    app = FastAPI(title="Copee Demo Marketplace Backend")
     app.state.store = store or InMemoryStore()
     app.state.adk_client = adk_client or AdkClient(os.getenv("ADK_BASE_URL", "http://127.0.0.1:8001"))
 
     cors_origins = os.getenv(
-        "SHOPEE_CORS_ORIGINS",
-        "http://127.0.0.1:5173,http://localhost:5173",
+        "COPEE_CORS_ORIGINS",
+        os.getenv(
+            "SHOPEE_CORS_ORIGINS",
+            "http://127.0.0.1:5173,http://localhost:5173",
+        ),
     ).split(",")
     app.add_middleware(
         CORSMiddleware,
@@ -48,7 +51,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "backend-shopee"}
+        return {"status": "ok", "service": "backend-copee"}
 
     @app.get("/listings", response_model=list[Listing])
     async def list_listings() -> list[Listing]:

@@ -38,9 +38,9 @@ model.
 The repo now has three independently runnable pieces:
 
 - `backend/`: ADK TrustPatrol investigation workflow.
-- `backend-shopee/`: Shopee-style marketplace API that owns listing mutations
+- `backend-shopee/`: Copee-style marketplace API that owns listing mutations
   and automatically starts TrustPatrol investigations.
-- `frontend-shopee/`: Vite React Shopee-like seller UI that only talks to
+- `frontend-shopee/`: Vite React Copee-like seller UI that only talks to
   `backend-shopee`.
 
 Run the full demo:
@@ -49,10 +49,10 @@ Run the full demo:
 # Terminal 1: TrustPatrol ADK backend
 adk web --port 8001
 
-# Terminal 2: Shopee marketplace backend
+# Terminal 2: Copee marketplace backend
 uv run uvicorn shopee_backend.main:app --app-dir backend-shopee --host 127.0.0.1 --port 8000 --reload
 
-# Terminal 3: Shopee frontend
+# Terminal 3: Copee frontend
 cd frontend-shopee
 npm install
 npm run dev
@@ -64,7 +64,7 @@ Open:
 http://127.0.0.1:5173
 ```
 
-In the Shopee frontend, the seller can view their dashboard, create products,
+In the Copee frontend, the seller can view their dashboard, create products,
 edit products, inspect product details, view their shop profile, and edit shop
 profile details. Listing `POST` and `PATCH` requests still trigger the ADK
 TrustPatrol workflow through `backend-shopee`, but the seller website does not

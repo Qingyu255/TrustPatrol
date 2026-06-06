@@ -35,7 +35,7 @@ class FakeAdkClient:
         yield 'data: {"content":{"parts":[{"functionResponse":{"name":"detect_brand_injection","response":{}}}]}}\n\n'
 
 
-class ShopeeApiTest(unittest.TestCase):
+class CopeeApiTest(unittest.TestCase):
     def setUp(self) -> None:
         self.adk = FakeAdkClient()
         self.app = create_app(store=InMemoryStore(), adk_client=self.adk)
@@ -111,14 +111,14 @@ class ShopeeApiTest(unittest.TestCase):
         response = self.client.patch(
             "/seller/profile",
             json={
-                "shop_name": "Shopee Demo Outlet",
+                "shop_name": "Copee Demo Outlet",
                 "description": "Updated seller profile for demo.",
             },
         )
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["shop_name"], "Shopee Demo Outlet")
+        self.assertEqual(body["shop_name"], "Copee Demo Outlet")
         self.assertEqual(body["description"], "Updated seller profile for demo.")
 
     def test_investigation_payload_only_includes_previous_and_latest_versions(self) -> None:
