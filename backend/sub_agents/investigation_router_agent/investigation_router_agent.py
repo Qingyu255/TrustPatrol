@@ -6,13 +6,13 @@ from google.adk.agents.invocation_context import InvocationContext
 
 from backend.config import Config
 from backend.shared.llm_enrichment import build_router_llm_analysis
-from backend.shared.phase2_engine import SPECIALIST_BUILDERS, build_investigation_plan, build_timeline_signals, extract_case_from_text
-from backend.sub_agents.brand_protection_agent import brand_protection_agent
-from backend.sub_agents.phase2_base import _content_event, _latest_user_text
-from backend.sub_agents.pricing_agent import pricing_agent
-from backend.sub_agents.review_integrity_agent import review_integrity_agent
-from backend.sub_agents.seller_trust_agent import seller_trust_agent
-from backend.sub_agents.visual_evidence_agent import visual_evidence_agent
+from backend.shared.investigation_engine import SPECIALIST_BUILDERS, build_investigation_plan, build_timeline_signals, extract_case_from_text
+from backend.sub_agents.investigation_router_agent.sub_agents.brand_protection_agent import brand_protection_agent
+from backend.custom.deterministic_agent import _content_event, _latest_user_text
+from backend.sub_agents.investigation_router_agent.sub_agents.pricing_agent import pricing_agent
+from backend.sub_agents.investigation_router_agent.sub_agents.review_integrity_agent import review_integrity_agent
+from backend.sub_agents.investigation_router_agent.sub_agents.seller_trust_agent import seller_trust_agent
+from backend.sub_agents.investigation_router_agent.sub_agents.visual_evidence_agent import visual_evidence_agent
 
 
 SPECIALIST_PROGRESS = {

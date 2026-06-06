@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backend.shared.phase2_scenarios import PHASE2_SCENARIOS
+from backend.shared.scenarios import PHASE2_SCENARIOS
 from backend.config import Config
 
 
@@ -19,10 +19,28 @@ APP_NAME = os.environ.get("ADK_APP_NAME", "backend")
 USER_ID = os.environ.get("ADK_LITMUS_USER", "phase2-litmus")
 
 EXPECTED = {
+    "baseline_safe_creation": {
+        "invoked": [],
+        "risk": "LOW",
+        "action": "ALLOW",
+        "review_type": "baseline_review",
+    },
+    "baseline_risky_creation": {
+        "invoked": [
+            "BrandProtectionAgent",
+            "VisualEvidenceAgent",
+            "SellerTrustAgent",
+            "ReviewIntegrityAgent",
+        ],
+        "risk": "MEDIUM",
+        "action": "MONITOR",
+        "review_type": "baseline_review",
+    },
     "legitimate_edit": {
         "invoked": [],
         "risk": "LOW",
         "action": "ALLOW",
+        "review_type": "post_approval_edit",
     },
     "luxury_full_risk": {
         "invoked": [
@@ -34,21 +52,25 @@ EXPECTED = {
         ],
         "risk": "CRITICAL",
         "action": "TEMPORARY_SUPPRESSION_AND_HUMAN_REVIEW",
+        "review_type": "post_approval_edit",
     },
     "image_only_suspicious": {
         "invoked": ["VisualEvidenceAgent"],
         "risk": "MEDIUM",
         "action": "REQUEST_VERIFICATION",
+        "review_type": "post_approval_edit",
     },
     "price_drop_only": {
         "invoked": ["PricingAgent"],
         "risk": "MEDIUM",
         "action": "MONITOR",
+        "review_type": "post_approval_edit",
     },
     "review_abuse": {
         "invoked": ["SellerTrustAgent", "ReviewIntegrityAgent"],
         "risk": "MEDIUM",
         "action": "MONITOR",
+        "review_type": "post_approval_edit",
     },
 }
 
@@ -200,6 +222,7 @@ def main() -> int:
             "risk": final["lead_decision"]["risk_level"],
             "action": final["lead_decision"]["recommended_action"],
             "score": final["lead_decision"]["final_risk_score"],
+            "review_type": final["timeline_diff"]["signals"]["review_type"],
             "router_llm_status": (final["router_plan"].get("llm_router_analysis") or {}).get("status"),
             "specialist_llm_statuses": {
                 finding["agent"]: (finding.get("llm_analysis") or {}).get("status")
@@ -239,7 +262,7 @@ def main() -> int:
                 failures.append(
                     f"{key}.specialist_llm_statuses: expected completed, got {incomplete!r}"
                 )
-        for field in ("invoked", "risk", "action"):
+        for field in ("invoked", "risk", "action", "review_type"):
             if actual[field] != expected[field]:
                 failures.append(
                     f"{key}.{field}: expected {expected[field]!r}, got {actual[field]!r}"

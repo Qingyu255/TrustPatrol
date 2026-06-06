@@ -1,5 +1,5 @@
 from .mock_data import DEMO_SCENARIOS
-from .phase2_scenarios import PHASE2_SCENARIOS
+from .scenarios import PHASE2_SCENARIOS
 from .schemas import (
     AssessmentResult,
     EnforcementActionLog,

@@ -9,7 +9,7 @@ from google.adk.events import Event
 from google.genai import types
 
 from backend.config import Config
-from backend.shared.phase2_engine import (
+from backend.shared.investigation_engine import (
     build_phase2_case_file,
     extract_case_from_text,
 )

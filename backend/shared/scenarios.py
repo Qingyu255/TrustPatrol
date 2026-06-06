@@ -1,4 +1,78 @@
 PHASE2_SCENARIOS = {
+    "baseline_safe_creation": {
+        "listing_id": "L-BASE-SAFE-001",
+        "name": "Baseline Safe Listing Creation",
+        "expected": {"risk_level": "LOW", "recommended_action": "ALLOW"},
+        "timeline": [
+            {
+                "version": 1,
+                "status": "approved",
+                "title": "Canvas Tote Bag",
+                "description": "New canvas tote with inner pocket.",
+                "brand": None,
+                "price": 12,
+                "image_id": "canvas_tote_01",
+                "seller_id": "S-BASE-SAFE-001",
+            }
+        ],
+        "seller_profile": {
+            "seller_id": "S-BASE-SAFE-001",
+            "seller_age_days": 720,
+            "prior_flags": 0,
+            "similar_listing_count_24h": 1,
+        },
+        "review_profile": {
+            "avg_rating": 4.7,
+            "review_count": 44,
+            "generic_review_ratio": 0.14,
+            "review_burst_detected": False,
+        },
+        "image_metadata": {
+            "previous_image_id": None,
+            "current_image_id": "canvas_tote_01",
+            "image_changed": False,
+            "contains_brand_logo": False,
+            "contains_packaging": False,
+            "image_category": "canvas_tote",
+        },
+    },
+    "baseline_risky_creation": {
+        "listing_id": "L-BASE-RISK-001",
+        "name": "Baseline Risky Listing Creation",
+        "expected": {"risk_level": "MEDIUM", "recommended_action": "MONITOR"},
+        "timeline": [
+            {
+                "version": 1,
+                "status": "approved",
+                "title": "Luxury Designer Bag 1:1 Mirror Quality AAA",
+                "description": "Original quality, factory direct, no receipt.",
+                "brand": "Luxury Designer",
+                "price": 39,
+                "image_id": "designer_bag_packaging_01",
+                "seller_id": "S-BASE-RISK-001",
+            }
+        ],
+        "seller_profile": {
+            "seller_id": "S-BASE-RISK-001",
+            "seller_age_days": 8,
+            "prior_flags": 3,
+            "similar_listing_count_24h": 12,
+        },
+        "review_profile": {
+            "avg_rating": 4.9,
+            "review_count": 128,
+            "generic_review_ratio": 0.72,
+            "review_burst_detected": True,
+        },
+        "image_metadata": {
+            "previous_image_id": None,
+            "current_image_id": "designer_bag_packaging_01",
+            "image_changed": False,
+            "contains_brand_logo": True,
+            "contains_packaging": True,
+            "image_category": "luxury_bag_packaging",
+        },
+    },
     "legitimate_edit": {
         "listing_id": "L-LEGIT-001",
         "name": "Legitimate Edit",

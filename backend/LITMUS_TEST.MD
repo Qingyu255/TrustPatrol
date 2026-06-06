@@ -11,11 +11,160 @@ Test whether the system can:
 3. Produce useful evidence cards
 4. Avoid over-enforcement on weak evidence
 5. Produce a defensible final human-review recommendation
+6. Handle both newly created listings and post-approval edits
 ```
 
 ---
 
-# 1. Legitimate edit should not trigger unnecessary agents
+# 1. Safe baseline listing creation should be allowed
+
+## Input
+
+```json
+{
+  "listing_id": "L-BASE-SAFE-001",
+  "timeline": [
+    {
+      "version": 1,
+      "status": "approved",
+      "title": "Canvas Tote Bag",
+      "description": "New canvas tote with inner pocket.",
+      "brand": null,
+      "price": 12,
+      "image_id": "canvas_tote_01",
+      "seller_id": "S-BASE-SAFE-001"
+    }
+  ],
+  "seller_profile": {
+    "seller_id": "S-BASE-SAFE-001",
+    "seller_age_days": 720,
+    "prior_flags": 0,
+    "similar_listing_count_24h": 1
+  },
+  "review_profile": {
+    "avg_rating": 4.7,
+    "review_count": 44,
+    "generic_review_ratio": 0.14,
+    "review_burst_detected": false
+  },
+  "image_metadata": {
+    "previous_image_id": null,
+    "current_image_id": "canvas_tote_01",
+    "image_changed": false,
+    "contains_brand_logo": false,
+    "contains_packaging": false,
+    "image_category": "canvas_tote"
+  }
+}
+```
+
+## Expected
+
+```txt
+TimelineDiffAgent:
+- Should identify review_type as baseline_review
+- Should not require a previous listing version
+
+Router:
+- Should skip specialist agents
+
+Final:
+Risk: LOW
+Action: ALLOW
+Evidence: should mention baseline listing review with no material risk signals
+```
+
+## What this tests
+
+```txt
+The system handles new listing creation.
+The agent does not crash on a single-version timeline.
+Safe sellers are not over-investigated at creation time.
+```
+
+---
+
+# 2. Risky baseline listing creation should route to specialists
+
+## Input
+
+```json
+{
+  "listing_id": "L-BASE-RISK-001",
+  "timeline": [
+    {
+      "version": 1,
+      "status": "approved",
+      "title": "Luxury Designer Bag 1:1 Mirror Quality AAA",
+      "description": "Original quality, factory direct, no receipt.",
+      "brand": "Luxury Designer",
+      "price": 39,
+      "image_id": "designer_bag_packaging_01",
+      "seller_id": "S-BASE-RISK-001"
+    }
+  ],
+  "seller_profile": {
+    "seller_id": "S-BASE-RISK-001",
+    "seller_age_days": 8,
+    "prior_flags": 3,
+    "similar_listing_count_24h": 12
+  },
+  "review_profile": {
+    "avg_rating": 4.9,
+    "review_count": 128,
+    "generic_review_ratio": 0.72,
+    "review_burst_detected": true
+  },
+  "image_metadata": {
+    "previous_image_id": null,
+    "current_image_id": "designer_bag_packaging_01",
+    "image_changed": false,
+    "contains_brand_logo": true,
+    "contains_packaging": true,
+    "image_category": "luxury_bag_packaging"
+  }
+}
+```
+
+## Expected
+
+```txt
+TimelineDiffAgent:
+- Should identify review_type as baseline_review
+
+Router:
+Invoke:
+- BrandProtectionAgent
+- VisualEvidenceAgent
+- SellerTrustAgent
+- ReviewIntegrityAgent
+
+Skip:
+- PricingAgent, because there is no previous price to compare against
+
+Final:
+Risk: MEDIUM
+Action: MONITOR
+
+Evidence must mention:
+- baseline brand claim
+- 1:1 / mirror quality / AAA / factory direct / no receipt
+- baseline image metadata contains branded packaging or logo
+- young seller, prior flags, or high listing velocity
+- review burst or generic review ratio
+```
+
+## What this tests
+
+```txt
+The same specialist architecture works for initial listing review.
+The system does not depend on post-approval mutation to produce evidence.
+Pricing remains edit-specific and is skipped on creation.
+```
+
+---
+
+# 3. Legitimate edit should not trigger unnecessary agents
 
 ## Input
 
@@ -93,7 +242,7 @@ The final decision protects honest sellers from over-enforcement.
 
 ---
 
-# 2. Full luxury counterfeit-risk mutation should become critical
+# 4. Full luxury counterfeit-risk mutation should become critical
 
 ## Input
 
@@ -184,7 +333,7 @@ The final action is defensible because multiple evidence lanes agree.
 
 ---
 
-# 3. Image-only suspicious edit should trigger visual route but not over-enforce
+# 5. Image-only suspicious edit should trigger visual route but not over-enforce
 
 ## Input
 
@@ -271,7 +420,7 @@ The adjudicator does not over-enforce from one moderate-confidence visual signal
 
 ---
 
-# 4. Price-drop-only case should not become critical
+# 6. Price-drop-only case should not become critical
 
 ## Input
 
@@ -360,7 +509,7 @@ A single pricing signal should not trigger harsh enforcement.
 
 ---
 
-# 5. Review-abuse case should route to review + seller agents
+# 7. Review-abuse case should route to review + seller agents
 
 ## Input
 
@@ -455,6 +604,7 @@ Your system passes if:
 
 ```txt
 Router behavior:
+[ ] Handles single-version baseline listing creation
 [ ] Invokes relevant agents
 [ ] Skips irrelevant agents
 [ ] Explains why each agent was selected or skipped
