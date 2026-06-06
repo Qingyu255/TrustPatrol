@@ -28,8 +28,8 @@ cp backend/.env.example backend/.env
 uv add <your-package>
 
 
-# Run with web interface which also spins up the fast api server
-adk web --port 8001
+# Run the ADK web interface directly
+make backend-adk
 
 # View Backend API docs:
 http://localhost:8001/docs
@@ -50,25 +50,20 @@ The repo now has three independently runnable pieces:
 - `frontend-shopee/`: Vite React Shopee-like seller UI that only talks to
   `backend-shopee`.
 
-Run the full demo:
+Run the full demo with one command:
 
 ```bash
-# Terminal 1: TrustPatrol ADK backend
-adk web --port 8001
-
-# Terminal 2: Shopee marketplace backend
-uv run uvicorn shopee_backend.main:app --app-dir backend-shopee --host 127.0.0.1 --port 8000 --reload
-
-# Terminal 3: Shopee frontend
-cd frontend-shopee
-npm install
-npm run dev
+make install
+make dev
 ```
 
 Open:
 
 ```txt
-http://127.0.0.1:5173
+Shopee seller frontend:   http://127.0.0.1:5173
+TrustPatrol reviewer UI:  http://127.0.0.1:5174
+Shopee backend API:       http://127.0.0.1:8000
+ADK web / backend API:    http://127.0.0.1:8001
 ```
 
 In the Shopee frontend, the seller can view their dashboard, create products,
@@ -77,12 +72,25 @@ profile details. Listing `POST` and `PATCH` requests still trigger the ADK
 TrustPatrol workflow through `backend-shopee`, but the seller website does not
 show TrustPatrol timeline internals.
 
+Useful Makefile targets:
+
+```bash
+make dev                  # start both backends and both frontends
+make dev-backends         # start ADK backend + Shopee backend
+make dev-frontends        # start both Vite frontends
+make backend-adk          # start ADK backend on 8001
+make backend-shopee       # start Shopee backend on 8000
+make frontend-shopee      # start Shopee seller frontend on 5173
+make frontend-trustpatrol # start TrustPatrol reviewer frontend on 5174
+make check                # run backend case-file contract check
+```
+
 ## ADK Web Litmus Test
 
 Run:
 
 ```bash
-adk web --port 8001
+make backend-adk
 ```
 
 Open:
