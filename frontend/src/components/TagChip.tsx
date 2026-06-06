@@ -63,11 +63,3 @@ export function fieldTone(field: string): TagTone {
   if (field === "keywords") return "pink";
   return "slate";
 }
-
-export function categoryTone(category: string): TagTone {
-  if (category === "Electronics") return "blue";
-  if (category === "Bags & Luxury") return "purple";
-  if (category === "Fashion") return "teal";
-  if (category === "Footwear") return "orange";
-  return "slate";
-}

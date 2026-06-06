@@ -2,336 +2,281 @@
 
 ## Mission
 
-Build the TrustPatrol React MVP as a Trust & Safety operations center.
+Build TrustPatrol as a Trust & Safety / Listing Violation reviewer dashboard.
 
-The frontend should show how a marketplace listing changes from a normal approved v1 listing into a suspicious v2 update, then visualize the agentic investigation flow from evidence gathering to risk assessment to human review.
+The product should feel like an operator decision-support system for marketplace enforcement, not an AI experiment. The reviewer should be able to make a faster, safer, defensible decision in about 30 seconds.
 
-The core product idea:
+Core user questions:
+
+```txt
+Can I make a faster, safer enforcement decision?
+Can I explain this decision if the seller appeals?
+Can I avoid false positives against legitimate sellers?
+Can I protect buyers before harm happens?
+Can I reduce review queue load?
+```
+
+The main idea remains:
 
 ```txt
 Counterfeit risk is detected by tracking how listings change over time,
 not by judging one static snapshot.
 ```
 
-For the noon MVP, keep the experience focused, reliable, and demoable.
+---
+
+## Primary User
+
+Design first for Trust & Safety / Listing Violation reviewers.
+
+Their job:
+
+```txt
+Review flagged listings
+Understand why the system flagged them
+Decide whether to allow, monitor, request verification, suppress, or escalate
+Handle seller appeals
+Avoid wrongly punishing legitimate sellers
+```
+
+Do not make the interface feel like:
+
+```txt
+Look, agents are talking.
+```
+
+Make it feel like:
+
+```txt
+This system packaged the evidence so I can make and defend a decision quickly.
+```
 
 ---
 
-## Noon Scope
+## Product Language
 
-Build only what is needed to demonstrate:
+Do not use `Multi-Agent Debate` in the product UI.
 
-```txt
-Listings overview
-        ↓
-Listing details
-        ↓
-Version diff: v1 vs v2
-        ↓
-ADK agent workflow timeline
-        ↓
-InvestigationAgent evidence and reports
-        ↓
-AssessmentAgent risk and reasoning
-        ↓
-Human review decision
-```
-
-Do not build:
+Use:
 
 ```txt
-real Shopee scraping
-real image recognition
-seller network graph
-review fraud analysis
-multi-agent debate
-custom SSE infrastructure
-production auth
-production database
+Specialist Evidence Review
 ```
 
-Use ADK SSE directly when feasible. If ADK SSE is flaky, use mocked event playback for the polished frontend demo while ADK Web proves the real backend runtime.
+Internally, the backend may use agents. In the UI, show evidence lanes and a decision summary.
+
+Agent/runtime events may exist, but they should be minimized by default and only expanded when the reviewer wants provenance.
 
 ---
 
-## Page Model
+## Listing Details Page
 
-### Listings Overview Page
+The details page is a case file.
 
-First screen. Do not build a marketing landing page.
-
-Show all listings that are newly created, recently edited, or ready for review.
-
-Each listing row or card should show:
+Default structure:
 
 ```txt
-listing_id
-seller_id
-title
-status
-last edit / version count
-risk state
-recommended action when available
-clear way to open details
-```
-
-The overview should make the product feel like an operator dashboard for trust-and-safety reviewers.
-
-### Listing Details Page
-
-The details page is the main demo surface for one selected listing.
-
-It should show:
-
-```txt
-listing summary
-v1 vs v2 diff
-agent workflow timeline
-agent conversation / reasoning side panel
-investigation report
-assessment report
-risk recommendation
-human review actions
-```
-
-Suggested layout:
-
-```txt
-Left:    listing metadata and VersionDiff
-Center:  AgentWorkflow and AgentTimeline
-Right:   Evidence, reasoning, reports, and HumanReviewPanel
-```
-
-The workflow should clearly communicate that `InvestigationAgent` runs before `AssessmentAgent`.
-
----
-
-## Required Components
-
-Implement or scaffold these components:
-
-```txt
-ListingsPage
-ListingDetailsPage
-AgentWorkflow
-AgentTimeline
-VersionDiff
-EvidencePanel
-RiskPanel
-AgentConversationPanel
-InvestigationReportPanel
-AssessmentReportPanel
-HumanReviewPanel
-```
-
-### AgentTimeline
-
-This is the most important visual in the demo.
-
-It should render ADK SSE events when available and mocked playback events when fallback mode is enabled.
-
-At minimum, represent:
-
-```txt
-agent started
-tool call started
-tool call completed
-report generated
-agent completed
-final recommendation
-human review decision
-```
-
-Example timeline:
-
-```txt
-10:02:01 InvestigationAgent started
-10:02:03 detect_brand_injection completed
-10:02:04 detect_price_anomaly completed
-10:02:05 detect_counterfeit_keywords completed
-10:02:06 detect_image_swap completed
-10:02:08 Investigation report generated
-10:02:09 AssessmentAgent started
-10:02:10 Risk Score: 95
-10:02:11 Human Review Required
-```
-
-### AgentWorkflow
-
-Show the agent sequence visually:
-
-```txt
-TrustPatrolRootAgent
+Decision Header
         ↓
-InvestigationAgent
+Evidence Lanes + Decision Summary
         ↓
-AssessmentAgent
-        ↓
-Human Review
+Human Review Actions
 ```
 
-The workflow should update as the timeline progresses.
+Keep listing context compact. Avoid long transcripts as a primary surface.
 
-### VersionDiff
+### Top Section: Decision Header
 
-Show v1 vs v2 side by side.
-
-Highlight changed fields:
+Show:
 
 ```txt
-title
-description
-brand
-price
-image_id
-status
+Listing Risk: CRITICAL
+Recommended Action: Temporary Suppression + Human Review
+Confidence: 91%
+Human Review Required
 ```
 
-For the Brand Injection scenario, the diff should make it obvious that:
+This should be the first thing a reviewer can scan.
+
+### Main Section: Decision Summary
+
+Show reviewer-ready top reasons:
 
 ```txt
-brand was added after approval
-counterfeit-associated language appeared
-price dropped sharply
-image changed
+1. Brand Apple was added after approval.
+2. Price dropped 60%.
+3. "OEM", "1:1", and "mirror quality" appeared.
+4. Product image changed to branded packaging.
+5. Seller has prior suspicious edits.
 ```
 
-### EvidencePanel
-
-Show evidence generated by `InvestigationAgent`.
-
-Evidence should be human-readable bullets or cards, not only raw JSON.
-
-### RiskPanel
-
-Show the final `AssessmentAgent` output:
+Also show:
 
 ```txt
-risk_score
-risk_level
-confidence
-recommended_action
-reasoning
-human_review_required
+policy-grounded judgement
+why the recommended action is proportionate
+false-positive guardrail language
+how seller verification or reviewer override can narrow/reverse action
 ```
 
-Use clear severity styling for:
+Use careful language. Do not claim the seller is guilty.
+
+### Evidence Lanes
+
+Show these lanes instead of an agent debate:
 
 ```txt
-LOW
-MEDIUM
+Brand & Policy Evidence
+Pricing Evidence
+Visual Evidence
+Seller Trust Evidence
+Timeline Evidence
+```
+
+Each lane should include:
+
+```txt
+lane title
+severity
+short summary
+supporting facts
+```
+
+Render evidence lanes as one combined card with a vertical scroll. Each evidence category inside that card should be collapsible. The evidence card should have the main visual weight on the details page. Keep the first/highest-priority lane expanded by default and let reviewers expand the others as needed.
+
+Examples:
+
+```txt
+Brand & Policy Evidence
 HIGH
-CRITICAL
+Brand Apple was added after approval. Counterfeit-associated terms appeared.
+
+Pricing Evidence
+HIGH
+Price dropped from $30 to $12, a 60% drop.
+
+Visual Evidence
+MEDIUM
+Image changed to branded packaging.
+
+Seller Trust Evidence
+MEDIUM
+Seller account is new / prior flags / repeated edits.
+
+Timeline Evidence
+MEDIUM
+High-risk changes occurred after approval.
 ```
 
-### AgentConversationPanel
+### Specialist Evidence Review
 
-Show the conversation or handoff between agents.
+Keep the runtime/agent timeline in a small collapsed panel on the left.
 
-This panel can display:
+Default state:
 
 ```txt
-Root agent starting workflow
-InvestigationAgent gathering evidence
-InvestigationAgent passing structured evidence to AssessmentAgent
-AssessmentAgent scoring risk
-AssessmentAgent returning recommendation
+collapsed
+compact
+secondary
 ```
 
-Keep the language evidence-based. Do not imply that the seller is definitely guilty.
-
-### InvestigationReportPanel
-
-Show reports produced during or after the investigation stage.
-
-The report should summarize:
+When expanded, it may show:
 
 ```txt
-detected signals
-tools called
-tool outputs
-evidence list
-open uncertainty
+ADK/mock runtime events
+tool calls
+report generated events
+final recommendation event
 ```
 
-### AssessmentReportPanel
+This panel is provenance, not the main product story.
 
-Show the assessment report produced by `AssessmentAgent`.
+### Human Review And Assessment
 
-The report should summarize:
+Merge human review and assessment reasoning into one compact right-side module. Keep it smaller than the evidence section.
+
+Do not show long reasoning paragraphs here. The evidence lanes should carry the detailed support. The assessment/human decision module should only show:
 
 ```txt
-score calculation
+risk score
 risk level
-confidence
 recommended action
-reasoning
-human review requirement
+short judgement based on evidence lanes
+primary approve action
+optional other human decisions
 ```
 
-### HumanReviewPanel
-
-Provide these reviewer actions:
+Default human decision UI:
 
 ```txt
-Approve AI Action
-Override To Allow
-Request Verification
-Escalate To Investigator
+Approve
+```
+
+Optional decisions should be tucked behind an expandable `Other human decisions` control:
+
+```txt
+Request Seller Verification
+Override to Allow
+Escalate
 Mark False Positive
 ```
 
-Store the selected decision in frontend state. No backend persistence is required for noon.
+When the reviewer clicks Approve, record `Approve Suppression`.
+
+Store the selected decision in frontend state. No backend persistence is required for the noon MVP.
 
 ---
 
-## Data Defaults
+## Listings Overview Page
 
-Listing objects should include:
+The overview page remains a queue for newly created or edited listings.
 
-```ts
-type ListingVersion = {
-  listing_id: string;
-  seller_id: string;
-  version: number;
-  status: string;
-  title: string;
-  description: string;
-  brand: string | null;
-  price: number;
-  image_id: string;
-  created_at?: string;
-  updated_at?: string;
-};
+It should support:
+
+```txt
+category filters
+expected risk filter
+changed-field filter
+timeframe filter
+recommended action filter
+seller search
+pagination
 ```
 
-Timeline events should support:
-
-```ts
-type AgentEvent = {
-  id: string;
-  timestamp: string;
-  type:
-    | "agent_started"
-    | "tool_call_started"
-    | "tool_call_completed"
-    | "report_generated"
-    | "agent_completed"
-    | "final_recommendation"
-    | "human_review_decision";
-  agent?: "TrustPatrolRootAgent" | "InvestigationAgent" | "AssessmentAgent";
-  tool_name?: string;
-  title: string;
-  message?: string;
-  payload?: unknown;
-};
-```
-
-Use typed frontend structures where practical, but do not let typing block the demo.
+The first screen should be the review queue, not a landing page.
 
 ---
 
-## ADK Integration
+## Visual Direction
+
+Use actual Material UI components.
+
+Reference:
+
+```txt
+Material UI Minimal Free dashboard style
+Shopee-style warm orange accent
+dark bold headings
+soft white cards
+colored rounded tags
+clean operator console layout
+```
+
+Tags should be visually pleasant and meaningful:
+
+```txt
+risk tags
+category tags
+changed-field tags
+evidence-lane severity tags
+status tags
+```
+
+Prefer icons for navigation controls, with accessible labels and tooltips.
+
+---
+
+## ADK And Fallback
 
 Preferred runtime:
 
@@ -349,155 +294,34 @@ AssessmentAgent
 Structured recommendation
 ```
 
-Implement an `adkClient` helper if the frontend is scaffolded:
-
-```txt
-frontend/src/lib/adkClient.ts
-```
-
-It should be responsible for:
-
-```txt
-starting a TrustPatrol run
-subscribing to ADK SSE events
-normalizing incoming events into AgentEvent objects
-returning final structured recommendation
-```
-
-Do not build a custom backend streaming service before the noon MVP.
-
----
-
-## Fallback Playback
-
-The demo must still work if React-to-ADK SSE is flaky.
-
-Fallback behavior:
+For demo reliability:
 
 ```txt
 Use ADK Web to prove the real agent runtime.
 Use React mocked event playback to prove the polished product experience.
 ```
 
-Implement mock playback with the same `AgentEvent` shape used by real ADK events.
-
-The fallback should show:
-
-```txt
-InvestigationAgent starts
-deterministic tools complete
-investigation report appears
-AssessmentAgent starts
-risk score appears
-recommendation appears
-human reviewer approves action
-```
-
-Make this mode easy to trigger during the demo.
+Mock playback should auto-run when a listing details page opens.
 
 ---
 
-## Brand Injection Demo Scenario
+## Noon Non-Goals
 
-Use this as the main frontend demo.
-
-Initial listing:
-
-```json
-{
-  "listing_id": "L-BRAND-001",
-  "version": 1,
-  "status": "approved",
-  "title": "Wireless Earbuds Bluetooth 5.0",
-  "description": "Good condition wireless earbuds.",
-  "brand": null,
-  "price": 30,
-  "image_id": "generic_earbuds_01",
-  "seller_id": "S-RISKY-001"
-}
-```
-
-Suspicious update:
-
-```json
-{
-  "listing_id": "L-BRAND-001",
-  "version": 2,
-  "status": "approved",
-  "title": "Apple AirPods Pro OEM 1:1 Authentic",
-  "description": "Factory batch, same production line, mirror quality.",
-  "brand": "Apple",
-  "price": 12,
-  "image_id": "airpods_branded_box_01",
-  "seller_id": "S-RISKY-001"
-}
-```
-
-Expected result:
+Do not build:
 
 ```txt
-risk_score: 95
-risk_level: CRITICAL
-recommended_action: TEMPORARY_SUPPRESSION_AND_HUMAN_REVIEW
-human_review_required: true
+real Shopee scraping
+real image recognition
+production auth
+production database
+real seller history
+real Shopee policy integrations
+custom SSE infrastructure
+seller network graph
+multi-agent debate UI
 ```
 
----
-
-## UX Direction
-
-The product should feel like an operations console:
-
-```txt
-clear
-dense but readable
-fast to scan
-serious
-reviewer-friendly
-```
-
-Avoid:
-
-```txt
-marketing hero sections
-decorative landing pages
-oversized empty cards
-pure chatbot layout
-raw JSON as the primary UI
-```
-
-Use cards only for concrete items like listings, reports, evidence, and review actions.
-
-Use clear labels, status chips, timeline states, and risk severity colors. Make the reviewer decision state obvious after a button is clicked.
-
----
-
-## Test Plan
-
-Verify the Brand Injection flow:
-
-```txt
-1. Overview page shows L-BRAND-001.
-2. User opens listing details.
-3. v1 looks normal.
-4. v2 shows brand, counterfeit-associated keywords, price drop, and image swap.
-5. Timeline shows InvestigationAgent before AssessmentAgent.
-6. Tool events appear in the timeline.
-7. Investigation report appears before final risk.
-8. RiskPanel shows CRITICAL.
-9. Recommended action is TEMPORARY_SUPPRESSION_AND_HUMAN_REVIEW.
-10. Human reviewer can click Approve AI Action.
-```
-
-Also verify:
-
-```txt
-fallback playback works without ADK running
-overview-to-details navigation works
-reports are readable
-reasoning and conversation panels are readable
-layout works on laptop-sized screens
-```
+Use frontend mock seller-trust evidence for the demo.
 
 ---
 
@@ -506,13 +330,14 @@ layout works on laptop-sized screens
 Frontend MVP is ready when:
 
 ```txt
-Listings overview exists.
-Listing details exists.
-VersionDiff shows v1 vs v2.
-AgentTimeline shows the investigation workflow.
-Investigation evidence and report are visible.
-Assessment risk, reasoning, and report are visible.
-HumanReviewPanel records reviewer decision in state.
+Listings overview exists with filters and pagination.
+Opening a listing auto-runs TrustPatrol.
+Details page shows a decision header first.
+Details page shows evidence lanes.
+Details page shows compact policy-grounded judgement.
+Details page shows false-positive guardrails.
+Evidence lanes are combined into one vertically scrollable card with collapsible sections.
+Specialist Evidence Review is collapsed by default.
+Human review defaults to one Approve action with other decisions hidden behind expansion.
 Brand Injection scenario can be demoed smoothly.
-Mock playback fallback works.
 ```
