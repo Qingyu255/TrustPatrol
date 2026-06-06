@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import json
 import os
 from collections.abc import AsyncIterator
+from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from .adk_client import AdkClient, format_investigation_prompt
 from .models import (
     InvestigationStatus,
     Listing,
     ListingCreate,
+    ListingImageUpload,
+    ListingImageUploadResponse,
     ListingMutationResponse,
     ListingPatch,
     SellerProfile,
@@ -29,6 +35,7 @@ def create_app(
     *,
     store: InMemoryStore | None = None,
     adk_client: AdkClient | None = None,
+    upload_dir: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Copee Demo Marketplace Backend")
     app.state.store = store or InMemoryStore()
@@ -36,6 +43,8 @@ def create_app(
         os.getenv("ADK_BASE_URL", "http://127.0.0.1:8001"),
         os.getenv("ADK_APP_NAME", "backend"),
     )
+    app.state.upload_dir = upload_dir or Path(__file__).resolve().parents[1] / "uploaded-images"
+    app.state.upload_dir.mkdir(parents=True, exist_ok=True)
 
     cors_origins = {
         origin.strip()
@@ -80,6 +89,35 @@ def create_app(
     async def patch_profile(payload: SellerProfilePatch) -> SellerProfile:
         return await app.state.store.patch_profile(payload)
 
+    @app.post("/listing-images", response_model=ListingImageUploadResponse)
+    async def upload_listing_image(payload: ListingImageUpload) -> ListingImageUploadResponse:
+        if not payload.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Only image uploads are supported")
+        try:
+            _, encoded = payload.data_url.split(",", 1)
+            image_bytes = base64.b64decode(encoded, validate=True)
+        except (ValueError, binascii.Error) as error:
+            raise HTTPException(status_code=400, detail="Invalid image data") from error
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Image data is empty")
+        suffix = _upload_suffix(payload.file_name, payload.content_type)
+        image_id = f"uploaded_{uuid4().hex}{suffix}"
+        target = app.state.upload_dir / image_id
+        target.write_bytes(image_bytes)
+        return ListingImageUploadResponse(
+            image_id=image_id,
+            image_url=f"/listing-images/{image_id}",
+        )
+
+    @app.get("/listing-images/{image_id}")
+    async def get_listing_image(image_id: str) -> FileResponse:
+        if "/" in image_id or "\\" in image_id:
+            raise HTTPException(status_code=400, detail="Invalid image id")
+        target = app.state.upload_dir / image_id
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(target)
+
     @app.get("/listings/{listing_id}", response_model=Listing)
     async def get_listing(listing_id: str) -> Listing:
         listing = await app.state.store.get_listing(listing_id)
@@ -112,6 +150,18 @@ def create_app(
         )
 
     return app
+
+
+def _upload_suffix(file_name: str, content_type: str) -> str:
+    original_suffix = Path(file_name).suffix.lower()
+    if original_suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        return original_suffix
+    return {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+    }.get(content_type, ".img")
 
 
 async def _trigger_investigation(app: FastAPI, listing: Listing) -> ListingMutationResponse:

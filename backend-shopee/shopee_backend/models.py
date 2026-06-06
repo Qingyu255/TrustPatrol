@@ -109,6 +109,17 @@ class AdkSessionRequest(BaseModel):
     session_id: str
 
 
+class ListingImageUpload(BaseModel):
+    file_name: str
+    content_type: str
+    data_url: str
+
+
+class ListingImageUploadResponse(BaseModel):
+    image_id: str
+    image_url: str
+
+
 def listing_timeline_payload(listing: Listing) -> dict[str, Any]:
     review_versions = listing.versions[-2:]
     return {
