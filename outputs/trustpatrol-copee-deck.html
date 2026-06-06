@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrustPatrol Copee Deck</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fff8f3;
+      --paper: #ffffff;
+      --ink: #161616;
+      --muted: #707070;
+      --soft: #fff0e7;
+      --line: rgba(238, 77, 45, .18);
+      --orange: #ee4d2d;
+      --orange-2: #ff7337;
+      --deep: #3c1d13;
+      --green: #19a76f;
+      --blue: #2678ff;
+      --gold: #f3a000;
+      --shadow: 0 32px 80px rgba(238, 77, 45, .16);
+      --ease: cubic-bezier(.2, .85, .18, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .deck {
+      position: relative;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(238, 77, 45, .16), transparent 27rem),
+        radial-gradient(circle at 16% 82%, rgba(255, 115, 55, .13), transparent 29rem),
+        linear-gradient(135deg, #ffffff 0%, #fff8f3 48%, #fff1e6 100%);
+    }
+
+    .deck::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .36;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(238, 77, 45, .055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(238, 77, 45, .045) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(circle at center, black, transparent 86%);
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      gap: clamp(28px, 5vw, 72px);
+      align-items: center;
+      padding: clamp(34px, 6vw, 90px);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(34px) scale(.985);
+      transition: opacity 700ms var(--ease), transform 900ms var(--ease), filter 900ms var(--ease);
+      filter: blur(16px);
+    }
+
+    .scene.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    .scene.center {
+      place-items: center;
+      text-align: center;
+    }
+
+    .scene.two-col {
+      grid-template-columns: minmax(320px, .9fr) minmax(560px, 1.35fr);
+    }
+
+    .brand-mark {
+      position: fixed;
+      z-index: 20;
+      top: 28px;
+      left: 34px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--deep);
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .bag {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--orange);
+      color: white;
+      box-shadow: 0 14px 32px rgba(238, 77, 45, .24);
+    }
+
+    .bag svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 2.4;
+    }
+
+    .progress {
+      position: fixed;
+      z-index: 20;
+      right: 34px;
+      bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .progress-track {
+      width: 148px;
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(238, 77, 45, .14);
+    }
+
+    .progress-bar {
+      width: 20%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--orange), var(--orange-2));
+      transition: width 600ms var(--ease);
+    }
+
+    .nav {
+      position: fixed;
+      z-index: 20;
+      right: 34px;
+      top: 28px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .nav button {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .8);
+      box-shadow: 0 14px 34px rgba(60, 29, 19, .08);
+      transition: transform 220ms var(--ease), background 220ms var(--ease);
+    }
+
+    .nav button:hover {
+      background: white;
+      transform: translateY(-2px);
+    }
+
+    .copy {
+      max-width: 680px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--orange);
+      font-size: clamp(14px, 1.2vw, 18px);
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 11ch;
+      font-size: clamp(62px, 8vw, 142px);
+      font-weight: 780;
+      letter-spacing: 0;
+      line-height: .88;
+    }
+
+    .wide-title {
+      max-width: 15ch;
+    }
+
+    .subtitle {
+      max-width: 46rem;
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: clamp(20px, 2vw, 32px);
+      font-weight: 520;
+      line-height: 1.2;
+    }
+
+    .reveal-on-beat,
+    [data-beat-item] {
+      opacity: 0;
+      transform: translateY(22px) scale(.985);
+      filter: blur(10px);
+      transition: opacity 720ms var(--ease), transform 820ms var(--ease), filter 820ms var(--ease);
+    }
+
+    .reveal-on-beat.is-visible,
+    [data-beat-item].is-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 9px 15px;
+      border: 1px solid rgba(238, 77, 45, .18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .72);
+      box-shadow: 0 12px 28px rgba(60, 29, 19, .06);
+      color: var(--deep);
+      font-size: 14px;
+      font-weight: 780;
+    }
+
+    .visual-card {
+      position: relative;
+      min-height: 500px;
+      overflow: hidden;
+      border: 1px solid rgba(238, 77, 45, .18);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .96), rgba(255, 243, 235, .88)),
+        var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-orbit {
+      position: absolute;
+      inset: 38px;
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 50%;
+      animation: slowSpin 16s linear infinite;
+    }
+
+    .hero-orbit:nth-child(2) {
+      inset: 86px;
+      animation-duration: 22s;
+      animation-direction: reverse;
+    }
+
+    .hero-chip {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border: 1px solid rgba(238, 77, 45, .17);
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 18px 40px rgba(60, 29, 19, .1);
+      font-weight: 850;
+    }
+
+    .hero-chip small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero-chip.one {
+      top: 72px;
+      left: 58px;
+    }
+
+    .hero-chip.two {
+      right: 52px;
+      top: 156px;
+    }
+
+    .hero-chip.three {
+      right: 96px;
+      bottom: 78px;
+    }
+
+    .hero-chip.four {
+      bottom: 136px;
+      left: 76px;
+    }
+
+    .score-badge {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: grid;
+      width: min(260px, 42vw);
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 25%, rgba(255, 255, 255, .96), rgba(255, 236, 224, .96)),
+        var(--paper);
+      box-shadow: 0 34px 80px rgba(238, 77, 45, .22);
+      transform: translate(-50%, -50%);
+    }
+
+    .score-badge strong {
+      color: var(--orange);
+      font-size: clamp(70px, 8vw, 126px);
+      line-height: .8;
+    }
+
+    .score-badge span {
+      color: var(--deep);
+      font-size: 15px;
+      font-weight: 880;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .listing-change {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+      gap: 18px;
+      align-items: center;
+      padding: clamp(24px, 4vw, 46px);
+    }
+
+    .listing-card {
+      min-height: 430px;
+      padding: 22px;
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 18px 44px rgba(60, 29, 19, .08);
+    }
+
+    .listing-card.after {
+      border-color: rgba(238, 77, 45, .36);
+      background: linear-gradient(155deg, #ffffff, #fff0e8);
+    }
+
+    .product-photo {
+      display: grid;
+      height: 154px;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 42% 28%, rgba(255, 255, 255, .9), transparent 34%),
+        linear-gradient(135deg, #f1f4f8, #dce2ea);
+      color: #6b7280;
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .after .product-photo {
+      background:
+        radial-gradient(circle at 46% 32%, rgba(255, 255, 255, .9), transparent 28%),
+        linear-gradient(135deg, #fff, #f5b49f 45%, #ee4d2d);
+      color: white;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .field-row {
+      padding: 12px 13px;
+      border: 1px solid rgba(60, 29, 19, .08);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .field-row span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 830;
+      text-transform: uppercase;
+    }
+
+    .field-row b {
+      display: block;
+      margin-top: 4px;
+      color: var(--deep);
+      font-size: 16px;
+      line-height: 1.18;
+    }
+
+    .field-row.risky {
+      border-color: rgba(238, 77, 45, .36);
+      box-shadow: inset 4px 0 0 var(--orange);
+    }
+
+    .morph-arrow {
+      display: grid;
+      width: 68px;
+      height: 68px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--orange);
+      color: white;
+      font-size: 32px;
+      font-weight: 950;
+      box-shadow: 0 20px 42px rgba(238, 77, 45, .26);
+    }
+
+    .mutation-ribbon {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      display: flex;
+      gap: 10px;
+      transform: translateX(-50%);
+    }
+
+    .mutation-ribbon span {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: var(--deep);
+      color: white;
+      font-size: 13px;
+      font-weight: 840;
+      box-shadow: 0 14px 30px rgba(60, 29, 19, .16);
+    }
+
+    .architecture {
+      display: grid;
+      gap: 18px;
+      padding: clamp(20px, 3vw, 38px);
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .node {
+      min-height: 150px;
+      padding: 20px;
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, .86);
+      box-shadow: 0 16px 36px rgba(60, 29, 19, .07);
+      opacity: 0;
+      transform: translateY(24px);
+    }
+
+    .active .node {
+      animation: nodeIn 760ms var(--ease) forwards;
+    }
+
+    .active .node:nth-child(2) { animation-delay: 120ms; }
+    .active .node:nth-child(3) { animation-delay: 240ms; }
+    .active .node:nth-child(4) { animation-delay: 360ms; }
+    .active .node:nth-child(5) { animation-delay: 480ms; }
+
+    .node-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 24px;
+      place-items: center;
+      border-radius: 15px;
+      background: var(--soft);
+      color: var(--orange);
+    }
+
+    .node h2 {
+      font-size: 21px;
+      line-height: 1.05;
+    }
+
+    .node p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 580;
+      line-height: 1.35;
+    }
+
+    .handoff {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 28px;
+      border-radius: 24px;
+      background: var(--deep);
+      color: white;
+      box-shadow: 0 28px 60px rgba(60, 29, 19, .22);
+    }
+
+    .handoff .mini {
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .handoff b {
+      display: block;
+      font-size: 18px;
+    }
+
+    .handoff span {
+      color: rgba(255, 255, 255, .68);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .arrow {
+      color: var(--orange-2);
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .workflow-stage {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      padding: clamp(22px, 3vw, 36px);
+    }
+
+    .workflow-node {
+      position: relative;
+      min-height: 180px;
+      padding: 20px;
+      border: 1px solid rgba(238, 77, 45, .17);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 16px 38px rgba(60, 29, 19, .07);
+    }
+
+    .workflow-node.agent {
+      border-color: rgba(238, 77, 45, .36);
+      background: linear-gradient(150deg, #fff, #fff1e9);
+    }
+
+    .workflow-node.result {
+      background: var(--deep);
+      color: white;
+    }
+
+    .workflow-node .node-icon {
+      margin-bottom: 18px;
+    }
+
+    .workflow-node.result .node-icon {
+      background: rgba(255, 255, 255, .12);
+      color: white;
+    }
+
+    .workflow-node p {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 620;
+      line-height: 1.34;
+    }
+
+    .workflow-node.result p {
+      color: rgba(255, 255, 255, .7);
+    }
+
+    .workflow-node::after {
+      content: ">";
+      position: absolute;
+      top: 50%;
+      right: -14px;
+      color: var(--orange);
+      font-size: 24px;
+      font-weight: 950;
+      transform: translateY(-50%);
+    }
+
+    .workflow-node:nth-child(4)::after,
+    .workflow-node:last-child::after {
+      content: "";
+    }
+
+    .tool-strip {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: -4px;
+    }
+
+    .tool-chip {
+      min-height: 74px;
+      padding: 13px;
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 17px;
+      background: #fff;
+      color: var(--deep);
+      font-size: 13px;
+      font-weight: 840;
+      box-shadow: 0 12px 26px rgba(60, 29, 19, .055);
+    }
+
+    .browser-shell {
+      min-height: 0;
+      height: min(74vh, 760px);
+      overflow: hidden;
+      border: 1px solid rgba(238, 77, 45, .2);
+      border-radius: 26px;
+      background: white;
+      box-shadow: 0 34px 90px rgba(60, 29, 19, .2);
+      opacity: 0;
+      transform: translateX(30px) scale(.975);
+    }
+
+    .active .browser-shell {
+      animation: browserIn 900ms var(--ease) 180ms forwards;
+    }
+
+    .browser-bar {
+      display: flex;
+      height: 46px;
+      align-items: center;
+      gap: 9px;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(238, 77, 45, .14);
+      background: #fff7f2;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot.red { background: #ff5f57; }
+    .dot.yellow { background: #ffbd2e; }
+    .dot.green { background: #28c840; }
+
+    .address {
+      display: flex;
+      min-width: 0;
+      height: 29px;
+      flex: 1;
+      align-items: center;
+      margin-left: 10px;
+      padding: 0 13px;
+      border: 1px solid rgba(238, 77, 45, .14);
+      border-radius: 999px;
+      background: white;
+      color: #8a5d4c;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .browser-shell iframe {
+      width: 100%;
+      height: calc(100% - 46px);
+      border: 0;
+      background: white;
+    }
+
+    .number {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--orange);
+      color: white;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .scenario-badge {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--orange);
+      color: white;
+      font-size: 14px;
+      font-weight: 850;
+      box-shadow: 0 18px 34px rgba(238, 77, 45, .24);
+    }
+
+    .closing-card {
+      width: min(980px, calc(100vw - 48px));
+      padding: clamp(34px, 6vw, 72px);
+      border: 1px solid rgba(238, 77, 45, .16);
+      border-radius: 34px;
+      background: rgba(255, 255, 255, .82);
+      box-shadow: var(--shadow);
+    }
+
+    .closing-card h1 {
+      max-width: 13ch;
+      margin: 0 auto;
+    }
+
+    @keyframes slowSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes nodeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes browserIn {
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    @media (max-width: 980px) {
+      body {
+        overflow: auto;
+      }
+
+      .deck {
+        min-height: 100vh;
+        height: auto;
+        overflow: visible;
+      }
+
+      .scene,
+      .scene.two-col {
+        position: relative;
+        display: none;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        padding-top: 104px;
+      }
+
+      .scene.active {
+        display: grid;
+      }
+
+      .flow-row {
+        grid-template-columns: 1fr;
+      }
+
+      .listing-change,
+      .workflow-stage,
+      .tool-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .morph-arrow {
+        margin: 0 auto;
+        transform: rotate(90deg);
+      }
+
+      .mutation-ribbon {
+        position: static;
+        flex-wrap: wrap;
+        transform: none;
+      }
+
+      .workflow-node::after {
+        content: "";
+      }
+
+      .handoff {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+      }
+
+      .browser-shell {
+        height: 68vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <div class="brand-mark">
+      <div class="bag" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M6.5 8.5h11l-1 12h-10l-1-12Z"></path>
+          <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"></path>
+          <path d="M9.5 12h5"></path>
+        </svg>
+      </div>
+      <span>TrustPatrol for Copee</span>
+    </div>
+
+    <div class="nav" aria-label="Slide navigation">
+      <button type="button" id="prev" aria-label="Previous slide">‹</button>
+      <button type="button" id="next" aria-label="Next slide">›</button>
+    </div>
+
+    <section class="scene center active" data-title="Intro">
+      <div class="copy">
+        <p class="eyebrow">Marketplace Trust & Safety</p>
+        <h1 class="wide-title">TrustPatrol</h1>
+        <p class="subtitle">An autonomous agent workflow that detects suspicious post-approval listing changes before buyers are exposed.</p>
+        <div class="pill-row" role="list">
+          <span class="pill" role="listitem">Post-approval drift</span>
+          <span class="pill" role="listitem">ADK agents</span>
+          <span class="pill" role="listitem">Human review</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene two-col" data-title="Problem">
+      <div class="copy">
+        <p class="eyebrow">The key insight</p>
+        <h1>The listing changes after approval.</h1>
+        <p class="subtitle">Fraudulent listings can enter as normal products, then mutate into branded, underpriced, counterfeit-signal listings later.</p>
+      </div>
+      <div class="visual-card" aria-label="TrustPatrol risk signal visual">
+        <div class="hero-orbit"></div>
+        <div class="hero-orbit"></div>
+        <div class="hero-chip one">v1 Approved <small>Generic earbuds, $30</small></div>
+        <div class="hero-chip two">Brand injected <small>Apple appears later</small></div>
+        <div class="hero-chip three">Risk score <small>Human review required</small></div>
+        <div class="hero-chip four">v2 Edited <small>OEM, 1:1, $12</small></div>
+        <div class="score-badge">
+          <div>
+            <strong>95</strong>
+            <span>Critical</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene two-col" data-title="Architecture">
+      <div class="copy">
+        <p class="eyebrow">Architecture</p>
+        <h1>From seller edit to final verdict.</h1>
+        <p class="subtitle">The Copee seller action triggers a marketplace backend event, which starts the ADK investigation workflow and feeds the TrustPatrol dashboard.</p>
+      </div>
+      <div class="visual-card architecture">
+        <div class="flow-row">
+          <article class="node">
+            <div class="node-icon">01</div>
+            <h2>Copee Seller UI</h2>
+            <p>Seller creates or edits a product listing.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">02</div>
+            <h2>Marketplace API</h2>
+            <p>Stores listing versions and starts moderation checks.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">03</div>
+            <h2>ADK Web</h2>
+            <p>Runs TrustPatrolRootAgent through the ADK runtime.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">04</div>
+            <h2>Agents</h2>
+            <p>InvestigationAgent gathers evidence, AssessmentAgent scores risk.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">05</div>
+            <h2>Dashboard</h2>
+            <p>Reviewer sees timeline, evidence, risk, and action.</p>
+          </article>
+        </div>
+        <div class="handoff">
+          <div class="mini"><b>Listing timeline</b><span>v1 approved, v2 edited</span></div>
+          <div class="arrow">→</div>
+          <div class="mini"><b>Structured evidence</b><span>brand, price, keyword, image signals</span></div>
+          <div class="arrow">→</div>
+          <div class="mini"><b>Human decision</b><span>AI recommends, reviewer decides</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene two-col" data-title="Scenario #1">
+      <div class="copy">
+        <span class="scenario-badge">Scenario #1</span>
+        <p class="eyebrow">Creation of Fraud Listing</p>
+        <h1>Seller creates listing.</h1>
+        <p class="subtitle">Use the live Copee seller centre on the right to create a product listing and trigger marketplace moderation.</p>
+      </div>
+      <div class="browser-shell" aria-label="Interactive Copee seller website">
+        <div class="browser-bar">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <div class="address">http://127.0.0.1:5173 · Copee Seller Centre</div>
+        </div>
+        <iframe src="http://127.0.0.1:5173" title="Copee Seller Centre"></iframe>
+      </div>
+    </section>
+
+    <section class="scene two-col" data-title="Agent Workflow">
+      <div class="copy">
+        <p class="eyebrow">Behind the scenes</p>
+        <h1>Agents inspect the change.</h1>
+        <p class="subtitle">InvestigationAgent calls deterministic tools. AssessmentAgent converts evidence into a risk score and a human-review recommendation.</p>
+      </div>
+      <div class="visual-card architecture">
+        <div class="handoff">
+          <div class="mini"><b>InvestigationAgent</b><span>gathers listing-change evidence</span></div>
+          <div class="arrow">→</div>
+          <div class="mini"><b>AssessmentAgent</b><span>scores risk without claiming guilt</span></div>
+          <div class="arrow">→</div>
+          <div class="mini"><b>Reviewer</b><span>approves or overrides action</span></div>
+        </div>
+        <div class="flow-row">
+          <article class="node">
+            <div class="node-icon">✓</div>
+            <h2>Brand injection</h2>
+            <p>Apple brand appears after original approval.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">✓</div>
+            <h2>Price anomaly</h2>
+            <p>Price drops from $30 to $12.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">✓</div>
+            <h2>Counterfeit terms</h2>
+            <p>OEM, 1:1, factory batch, mirror quality.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">✓</div>
+            <h2>Image swap</h2>
+            <p>Generic product image becomes branded packaging.</p>
+          </article>
+          <article class="node">
+            <div class="node-icon">95</div>
+            <h2>Critical risk</h2>
+            <p>Temporary suppression and human review.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene center" data-title="Close">
+      <div class="closing-card">
+        <p class="eyebrow">Final frame</p>
+        <h1>TrustPatrol monitors how listings evolve.</h1>
+        <p class="subtitle">Not just how they start. The system catches risky post-approval mutation and keeps the final decision with a human reviewer.</p>
+      </div>
+    </section>
+
+    <div class="progress" aria-hidden="true">
+      <span id="count">1 / 6</span>
+      <div class="progress-track"><div class="progress-bar" id="bar"></div></div>
+    </div>
+  </main>
+
+  <script>
+    const scenes = Array.from(document.querySelectorAll(".scene"));
+    const bar = document.getElementById("bar");
+    const count = document.getElementById("count");
+    let index = 0;
+
+    function render() {
+      scenes.forEach((scene, sceneIndex) => {
+        scene.classList.toggle("active", sceneIndex === index);
+      });
+      count.textContent = `${index + 1} / ${scenes.length}`;
+      bar.style.width = `${((index + 1) / scenes.length) * 100}%`;
+    }
+
+    function next() {
+      index = Math.min(index + 1, scenes.length - 1);
+      render();
+    }
+
+    function prev() {
+      index = Math.max(index - 1, 0);
+      render();
+    }
+
+    document.getElementById("next").addEventListener("click", next);
+    document.getElementById("prev").addEventListener("click", prev);
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === " ") next();
+      if (event.key === "ArrowLeft") prev();
+    });
+
+    render();
+  </script>
+</body>
+</html>
