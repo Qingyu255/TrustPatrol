@@ -1,26 +1,15 @@
-from google.adk.agents.llm_agent import Agent
+from google.adk.agents import SequentialAgent
 
-from backend.config import Config
-from backend.sub_agents import planning_agent, summary_agent
+from backend.sub_agents import assessment_agent, investigation_agent
 
-root_agent = Agent(
-    model=Config.openai_model(),
-    name="root_agent",
+root_agent = SequentialAgent(
+    name="TrustPatrolRootAgent",
     description=(
-        "Generic coordinator that handles normal user requests and delegates "
-        "planning or summarization work to specialist agents."
+        "Sequential trust-and-safety workflow for investigating suspicious "
+        "marketplace listing changes."
     ),
-    instruction=(
-        "You are a generic root coordinator for a multi-agent ADK system. "
-        "Understand the user's request, decide whether to answer directly or "
-        "delegate, and keep the final response useful and concise.\n"
-        "- Delegate planning, decomposition, roadmap, milestone, and next-step "
-        "requests to planning_agent.\n"
-        "- Delegate summaries, recaps, briefs, syntheses, and handoff notes to "
-        "summary_agent.\n"
-        "- Handle simple general questions directly when no specialist is needed.\n"
-        "- If the request is missing critical context, ask one focused question "
-        "instead of guessing."
-    ),
-    sub_agents=[planning_agent, summary_agent],
+    sub_agents=[
+        investigation_agent,
+        assessment_agent,
+    ],
 )
