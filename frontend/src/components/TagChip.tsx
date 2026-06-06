@@ -61,5 +61,6 @@ export function fieldTone(field: string): TagTone {
   if (field === "image") return "blue";
   if (field === "text") return "teal";
   if (field === "keywords") return "pink";
+  if (field === "created_listing") return "green";
   return "slate";
 }
