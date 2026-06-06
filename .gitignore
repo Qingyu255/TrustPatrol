@@ -157,6 +157,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# ADK local runtime state
+.adk/
+
 # Spyder project settings
 .spyderproject
 .spyproject
