@@ -536,6 +536,7 @@ dd {
 }
 
 .photo-uploader {
+  position: relative;
   min-height: 138px;
   border: 1px dashed #f0a08f;
   border-radius: 3px;
@@ -546,11 +547,35 @@ dd {
   margin-bottom: 18px;
   color: #ee4d2d;
   background: #fff8f6;
+  overflow: hidden;
 }
 
 .photo-uploader span {
   color: #777;
   font-size: 13px;
+  max-width: min(420px, 90%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-uploader img {
+  width: 88px;
+  height: 88px;
+  border-radius: 3px;
+  object-fit: cover;
+  border: 1px solid #f2c6bc;
+}
+
+.photo-uploader input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.photo-uploader input:disabled {
+  cursor: wait;
 }
 
 .field {

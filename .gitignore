@@ -163,6 +163,7 @@ venv.bak/
 # Frontend dependencies/builds
 node_modules/
 frontend-shopee/dist/
+backend-shopee/uploaded-images/
 
 # Spyder project settings
 .spyderproject

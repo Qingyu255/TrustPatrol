@@ -71,6 +71,11 @@ type MutationResponse = {
   review_type: string;
 };
 
+type ListingImageUploadResponse = {
+  image_id: string;
+  image_url: string;
+};
+
 type ListingForm = {
   title: string;
   description: string;
@@ -101,6 +106,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const selectedListing = useMemo(
     () => listings.find((listing) => listing.listing_id === selectedId) ?? listings[0] ?? null,
@@ -199,6 +205,33 @@ function App() {
     showToast("Listing saved. Copee moderation checks started automatically.");
   }
 
+  async function uploadListingPhoto(file: File) {
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const response = await fetch(`${API_BASE}/listing-images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_name: file.name,
+          content_type: file.type || "image/jpeg",
+          data_url: dataUrl,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      const uploaded = (await response.json()) as ListingImageUploadResponse;
+      setListingForm((current) => ({ ...current, image_id: uploaded.image_id }));
+      showToast("Photo uploaded.");
+    } catch {
+      setError("Could not upload product photo.");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   async function saveProfile() {
     const response = await fetch(`${API_BASE}/seller/profile`, {
       method: "PATCH",
@@ -287,6 +320,8 @@ function App() {
             mode={page}
             form={listingForm}
             setForm={setListingForm}
+            uploadingImage={uploadingImage}
+            onPhotoSelected={(file) => void uploadListingPhoto(file)}
             onCancel={() => (page === "edit" ? setPage("detail") : setPage("listings"))}
             onSubmit={() => void submitListing()}
           />
@@ -519,12 +554,16 @@ function ListingFormPage({
   mode,
   form,
   setForm,
+  uploadingImage,
+  onPhotoSelected,
   onCancel,
   onSubmit,
 }: {
   mode: "create" | "edit";
   form: ListingForm;
   setForm: React.Dispatch<React.SetStateAction<ListingForm>>;
+  uploadingImage: boolean;
+  onPhotoSelected: (file: File) => void;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
@@ -543,9 +582,21 @@ function ListingFormPage({
       <section className="form-card">
         <SectionTitle icon={<Image />} title="Basic Information" />
         <div className="photo-uploader">
-          <Camera size={28} />
-          <strong>Add product photo</strong>
+          {form.image_id ? <img src={productImageUrl(form.image_id)} alt="" /> : <Camera size={28} />}
+          <strong>{uploadingImage ? "Uploading photo..." : "Add product photo"}</strong>
           <span>{form.image_id || "Image ID will appear here"}</span>
+          <input
+            type="file"
+            accept="image/*"
+            disabled={uploadingImage}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                onPhotoSelected(file);
+              }
+              event.currentTarget.value = "";
+            }}
+          />
         </div>
         <Field label="Product Name">
           <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
@@ -737,7 +788,19 @@ function latest(listing: Listing): ListingVersion {
   return listing.versions[listing.versions.length - 1];
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function productImageUrl(imageId: string): string {
+  if (imageId.startsWith("uploaded_")) {
+    return `${API_BASE}/listing-images/${encodeURIComponent(uploadedImageBaseId(imageId))}`;
+  }
   if (imageId.includes("airpods") || imageId.includes("earbuds")) {
     return "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?auto=format&fit=crop&w=800&q=80";
   }
@@ -748,6 +811,11 @@ function productImageUrl(imageId: string): string {
     return "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=800&q=80";
   }
   return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+}
+
+function uploadedImageBaseId(imageId: string): string {
+  const match = imageId.match(/^(uploaded_[a-f0-9]+\.(?:jpg|jpeg|png|gif|webp|img))/);
+  return match?.[1] ?? imageId;
 }
 
 createRoot(document.getElementById("root")!).render(
