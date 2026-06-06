@@ -10,6 +10,10 @@ class WebSerializableLiteLlm(LiteLlm):
 
 class Config:
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini")
+    TRUSTPATROL_LLM_ROUTER = os.getenv("TRUSTPATROL_LLM_ROUTER", "true").lower() == "true"
+    TRUSTPATROL_LLM_SPECIALISTS = os.getenv("TRUSTPATROL_LLM_SPECIALISTS", "true").lower() == "true"
+    TRUSTPATROL_REQUIRE_LLM = os.getenv("TRUSTPATROL_REQUIRE_LLM", "false").lower() == "true"
+    TRUSTPATROL_LLM_TIMEOUT_SECONDS = float(os.getenv("TRUSTPATROL_LLM_TIMEOUT_SECONDS", "15"))
 
     @classmethod
     def openai_model(cls) -> WebSerializableLiteLlm:
