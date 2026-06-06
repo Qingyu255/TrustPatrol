@@ -21,8 +21,6 @@ import {
   Tabs,
   Tab,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
@@ -175,6 +173,21 @@ export function ListingsPage({ scenarios, onOpenScenario }: Props) {
                 <MenuItem value="today">Edited: Today</MenuItem>
               </Select>
             </FormControl>
+            <FormControl size="small" sx={{ minWidth: 190 }}>
+              <Select
+                onChange={(event) => {
+                  setChangedField(event.target.value as ChangedFieldFilter);
+                  resetPage();
+                }}
+                value={changedField}
+              >
+                {changedFieldOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    Changes: {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <FormControl size="small" sx={{ minWidth: 260 }}>
               <Select
                 onChange={(event) => {
@@ -191,25 +204,6 @@ export function ListingsPage({ scenarios, onOpenScenario }: Props) {
               </Select>
             </FormControl>
           </Stack>
-
-          <Box sx={{ mt: 2, overflowX: "auto" }}>
-            <ToggleButtonGroup
-              exclusive
-              onChange={(_, value: ChangedFieldFilter | null) => {
-                if (!value) return;
-                setChangedField(value);
-                resetPage();
-              }}
-              size="small"
-              value={changedField}
-            >
-              {changedFieldOptions.map((option) => (
-                <ToggleButton key={option.value} value={option.value}>
-                  {option.label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-          </Box>
         </CardContent>
       </Card>
 

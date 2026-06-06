@@ -1,10 +1,10 @@
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "PENDING";
 
 export type ReviewDecision =
-  | "Approve AI Action"
-  | "Override To Allow"
-  | "Request Verification"
-  | "Escalate To Investigator"
+  | "Approve Suppression"
+  | "Request Seller Verification"
+  | "Override to Allow"
+  | "Escalate"
   | "Mark False Positive";
 
 export type ListingVersion = {
