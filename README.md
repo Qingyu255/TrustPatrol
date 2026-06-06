@@ -7,6 +7,13 @@ analyzing one static snapshot.
 
 ## Quick Start
 ```bash
+# create your virtual environment
+python -m venv .venv
+# For unix based systems:
+source .venv/bin/activate
+# For windows
+.venv/Scripts/Activate
+
 # if you dont have uv installed
 pip install uv
 
