@@ -211,7 +211,24 @@ def build_investigation_plan(case: dict[str, Any], signals: dict[str, Any] | Non
         if agent not in invoked
     ]
 
-    priority = "HIGH" if len(invoked) >= 3 or signals["counterfeit_keywords"] else "MEDIUM" if invoked else "LOW"
+    severe_signal = (
+        bool(signals["counterfeit_keywords"])
+        or signals["price_drop_pct"] >= 70
+        or (
+            signals["brand_added"]
+            and signals["price_drop_pct"] >= 30
+        )
+    )
+    moderate_signal = (
+        signals["brand_added"]
+        or signals.get("baseline_brand_claim")
+        or signals["price_drop_pct"] >= 30
+        or (
+            signals["image_contains_brand_logo"]
+            and signals["image_contains_packaging"]
+        )
+    )
+    priority = "HIGH" if severe_signal else "MEDIUM" if moderate_signal else "LOW"
     return {
         "agent": "InvestigationRouterAgent",
         "agents_to_invoke": invoked,
