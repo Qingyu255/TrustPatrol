@@ -21,7 +21,14 @@ export type ListingVersion = {
   updated_at?: string;
 };
 
-export type ChangedField = "brand" | "price" | "image" | "text" | "keywords" | "status";
+export type ChangedField =
+  | "brand"
+  | "price"
+  | "image"
+  | "text"
+  | "keywords"
+  | "status"
+  | "created_listing";
 
 export type AgentName =
   | "TrustPatrolRootAgent"
@@ -89,7 +96,10 @@ export type AdkSession = {
 };
 
 export type TimelineSignals = {
+  review_type?: "baseline_review" | "post_approval_edit" | string;
+  baseline_review?: boolean;
   brand_added?: boolean;
+  baseline_brand_claim?: boolean;
   brand_added_value?: string | null;
   previous_brand?: string | null;
   current_brand?: string | null;
@@ -173,6 +183,8 @@ export type EnforcementActionLog = {
 
 export type Phase2CaseFile = {
   listing_id: string;
+  timeline?: ListingVersion[];
+  versions?: ListingVersion[];
   timeline_diff: TimelineDiff;
   router_plan: RouterPlan;
   specialist_findings: SpecialistFinding[];

@@ -55,7 +55,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 function buildQueueRow(session: AdkSession, providedCaseFile: Phase2CaseFile | null = null, loadError?: string): ReviewQueueRow {
   const events = session.events ?? [];
   const caseFile = providedCaseFile ?? extractCaseFile(events);
-  const sourceCase = extractSourceCase(events);
+  const sourceCase = extractSourceCase(events) ?? sourceCaseFromCaseFile(caseFile);
   const listingId =
     caseFile?.listing_id ??
     sourceCase?.listing_id ??
@@ -97,7 +97,6 @@ function extractCaseFile(events: AdkEvent[]): Phase2CaseFile | null {
 
 function extractSourceCase(events: AdkEvent[]): BackendCase | null {
   for (const event of events) {
-    if (event.author !== "user") continue;
     const text = event.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
     const timeline = parseTimelineObjects(text);
     if (timeline.length > 0) {
@@ -112,6 +111,15 @@ function extractSourceCase(events: AdkEvent[]): BackendCase | null {
     if (isBackendCase(parsed)) return normalizeBackendCase(parsed);
   }
   return null;
+}
+
+function sourceCaseFromCaseFile(caseFile: Phase2CaseFile | null): BackendCase | null {
+  const timeline = caseFile?.timeline ?? caseFile?.versions ?? [];
+  if (!caseFile || timeline.length === 0) return null;
+  return {
+    listing_id: caseFile.listing_id,
+    timeline,
+  };
 }
 
 function parseJsonObject(text: string): unknown {
