@@ -617,28 +617,107 @@
     }
 
     .workflow-node:nth-child(4)::after,
+    .workflow-node:nth-child(8)::after,
     .workflow-node:last-child::after {
       content: "";
     }
 
-    .tool-strip {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: -4px;
+    .architecture-workflow .flow-row,
+    .architecture-workflow .handoff {
+      display: none;
     }
 
-    .tool-chip {
-      min-height: 74px;
-      padding: 13px;
-      border: 1px solid rgba(238, 77, 45, .16);
-      border-radius: 17px;
-      background: #fff;
-      color: var(--deep);
-      font-size: 13px;
-      font-weight: 840;
-      box-shadow: 0 12px 26px rgba(60, 29, 19, .055);
+    .architecture-workflow .workflow-stage {
+      padding: 0;
+    }
+
+    .architecture-map .workflow-stage {
+      position: relative;
+      z-index: 2;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .architecture-map {
+      align-content: center;
+      min-height: 100%;
+      overflow: visible;
+      padding: clamp(24px, 4vw, 48px);
+      transition: transform 760ms var(--ease);
+    }
+
+    .architecture-map .workflow-node {
+      opacity: 1;
+      transform: none;
+      transition: opacity 520ms var(--ease), transform 760ms var(--ease), box-shadow 760ms var(--ease), border-color 520ms var(--ease);
+    }
+
+    .architecture-map [data-beat-item] {
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+
+    .architecture-map .workflow-node::after {
+      content: "";
+    }
+
+    .scene.has-beat .architecture-map .workflow-node {
+      opacity: .42;
+    }
+
+    .scene.has-beat .architecture-map .workflow-node.is-focus {
+      z-index: 3;
+      opacity: 1;
+      border-color: rgba(238, 77, 45, .72);
+      box-shadow: 0 28px 70px rgba(238, 77, 45, .24);
+      transform: scale(1.12);
+    }
+
+    .scene.has-beat .architecture-map .workflow-node.is-past {
+      opacity: .78;
+    }
+
+    .scene.has-beat .architecture-map .workflow-node.is-focus::before {
+      content: "";
+      position: absolute;
+      inset: -10px;
+      z-index: -1;
+      border-radius: 30px;
+      background: radial-gradient(circle, rgba(238, 77, 45, .2), transparent 68%);
+      animation: pulseGlow 1100ms var(--ease) infinite alternate;
+    }
+
+    .workflow-path {
+      position: absolute;
+      z-index: 0;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(238, 77, 45, .18), rgba(238, 77, 45, .9));
+      opacity: .2;
+      transform-origin: left center;
+      transition: opacity 520ms var(--ease), transform 760ms var(--ease);
+    }
+
+    .workflow-path.is-focus {
+      opacity: 1;
+      transform: scaleX(1.08);
+      box-shadow: 0 0 24px rgba(238, 77, 45, .35);
+    }
+
+    .path-1 { left: 30%; right: 59%; top: 31%; }
+    .path-2 { left: 63%; right: 26%; top: 31%; }
+    .path-3 {
+      left: 50%;
+      top: 43%;
+      width: 4px;
+      height: 92px;
+      transform-origin: center top;
+    }
+    .path-4 { left: 30%; right: 59%; top: 72%; }
+    .path-5 { left: 63%; right: 26%; top: 72%; }
+
+    @keyframes pulseGlow {
+      to { transform: scale(1.04); opacity: .72; }
     }
 
     .browser-shell {
@@ -789,8 +868,7 @@
       }
 
       .listing-change,
-      .workflow-stage,
-      .tool-strip {
+      .workflow-stage {
         grid-template-columns: 1fr;
       }
 
@@ -841,142 +919,95 @@
       <button type="button" id="next" aria-label="Next slide">›</button>
     </div>
 
-    <section class="scene center active" data-title="Intro">
+    <section class="scene center active" data-title="Intro" data-max-beat="1">
       <div class="copy">
         <p class="eyebrow">Marketplace Trust & Safety</p>
         <h1 class="wide-title">TrustPatrol</h1>
-        <p class="subtitle">An autonomous agent workflow that detects suspicious post-approval listing changes before buyers are exposed.</p>
-        <div class="pill-row" role="list">
-          <span class="pill" role="listitem">Post-approval drift</span>
-          <span class="pill" role="listitem">ADK agents</span>
-          <span class="pill" role="listitem">Human review</span>
-        </div>
+        <p class="subtitle reveal-on-beat" data-beat-item="1">An autonomous agent workflow that detects suspicious post-approval listing changes before buyers are exposed.</p>
       </div>
     </section>
 
-    <section class="scene two-col" data-title="Problem">
+    <section class="scene two-col" data-title="Problem" data-max-beat="3">
       <div class="copy">
         <p class="eyebrow">The key insight</p>
         <h1>The listing changes after approval.</h1>
         <p class="subtitle">Fraudulent listings can enter as normal products, then mutate into branded, underpriced, counterfeit-signal listings later.</p>
       </div>
-      <div class="visual-card" aria-label="TrustPatrol risk signal visual">
-        <div class="hero-orbit"></div>
-        <div class="hero-orbit"></div>
-        <div class="hero-chip one">v1 Approved <small>Generic earbuds, $30</small></div>
-        <div class="hero-chip two">Brand injected <small>Apple appears later</small></div>
-        <div class="hero-chip three">Risk score <small>Human review required</small></div>
-        <div class="hero-chip four">v2 Edited <small>OEM, 1:1, $12</small></div>
-        <div class="score-badge">
-          <div>
-            <strong>95</strong>
-            <span>Critical</span>
+      <div class="visual-card listing-change" aria-label="Animated listing mutation">
+        <article class="listing-card">
+          <div class="product-photo">generic_earbuds_01</div>
+          <div class="field-stack">
+            <div class="field-row"><span>Title</span><b>Wireless Earbuds Bluetooth 5.0</b></div>
+            <div class="field-row"><span>Brand</span><b>No brand</b></div>
+            <div class="field-row"><span>Price</span><b>$30</b></div>
+            <div class="field-row"><span>Status</span><b>Approved</b></div>
           </div>
+        </article>
+
+        <div class="morph-arrow" data-beat-item="1">&gt;</div>
+
+        <article class="listing-card after" data-beat-item="1">
+          <div class="product-photo">airpods_branded_box_01</div>
+          <div class="field-stack">
+            <div class="field-row risky" data-beat-item="1"><span>Title</span><b>Apple AirPods Pro OEM 1:1 Authentic</b></div>
+            <div class="field-row risky" data-beat-item="2"><span>Brand</span><b>Apple added after approval</b></div>
+            <div class="field-row risky" data-beat-item="2"><span>Price</span><b>$12, a 60% drop</b></div>
+            <div class="field-row risky" data-beat-item="3"><span>Description</span><b>Factory batch, same production line, mirror quality.</b></div>
+          </div>
+        </article>
+
+        <div class="mutation-ribbon" data-beat-item="3">
+          <span>Brand injection</span>
+          <span>Counterfeit keywords</span>
+          <span>Image swap</span>
+          <span>Post-approval edit</span>
         </div>
       </div>
     </section>
 
-    <section class="scene two-col" data-title="Architecture">
+    <section class="scene two-col" data-title="Architecture" data-max-beat="6">
       <div class="copy">
         <p class="eyebrow">Architecture</p>
-        <h1>From seller edit to final verdict.</h1>
-        <p class="subtitle">The Copee seller action triggers a marketplace backend event, which starts the ADK investigation workflow and feeds the TrustPatrol dashboard.</p>
+        <h1>Agents work together.</h1>
+        <p class="subtitle">All nodes appear first. Each click highlights the next path, zooms into the active step, then returns the system to context.</p>
       </div>
-      <div class="visual-card architecture">
-        <div class="flow-row">
-          <article class="node">
+      <div class="visual-card architecture architecture-workflow architecture-map">
+        <span class="workflow-path path-1" data-path-step="2"></span>
+        <span class="workflow-path path-2" data-path-step="3"></span>
+        <span class="workflow-path path-3" data-path-step="4"></span>
+        <span class="workflow-path path-4" data-path-step="5"></span>
+        <span class="workflow-path path-5" data-path-step="6"></span>
+
+        <div class="workflow-stage" aria-label="Click-through TrustPatrol workflow">
+          <article class="workflow-node" data-beat-item="1" data-step="1">
             <div class="node-icon">01</div>
-            <h2>Copee Seller UI</h2>
-            <p>Seller creates or edits a product listing.</p>
+            <h2>Seller create/edit listing</h2>
+            <p>Copee Seller Centre sends a create or patch request for the product.</p>
           </article>
-          <article class="node">
+          <article class="workflow-node" data-beat-item="2" data-step="2">
             <div class="node-icon">02</div>
-            <h2>Marketplace API</h2>
-            <p>Stores listing versions and starts moderation checks.</p>
+            <h2>Copee Backend</h2>
+            <p>Stores listing versions and formats the timeline for investigation.</p>
           </article>
-          <article class="node">
+          <article class="workflow-node agent" data-beat-item="3" data-step="3">
             <div class="node-icon">03</div>
-            <h2>ADK Web</h2>
-            <p>Runs TrustPatrolRootAgent through the ADK runtime.</p>
+            <h2>TrustPatrolRootAgent</h2>
+            <p>A SequentialAgent routes the case through investigation, then assessment.</p>
           </article>
-          <article class="node">
+          <article class="workflow-node agent" data-beat-item="4" data-step="4">
             <div class="node-icon">04</div>
-            <h2>Agents</h2>
-            <p>InvestigationAgent gathers evidence, AssessmentAgent scores risk.</p>
+            <h2>InvestigationAgent</h2>
+            <p>Finds listing-change evidence without assigning final guilt or enforcement.</p>
           </article>
-          <article class="node">
+          <article class="workflow-node agent" data-beat-item="5" data-step="5">
             <div class="node-icon">05</div>
-            <h2>Dashboard</h2>
-            <p>Reviewer sees timeline, evidence, risk, and action.</p>
+            <h2>AssessmentAgent</h2>
+            <p>Scores the evidence into risk level, confidence, and action.</p>
           </article>
-        </div>
-        <div class="handoff">
-          <div class="mini"><b>Listing timeline</b><span>v1 approved, v2 edited</span></div>
-          <div class="arrow">→</div>
-          <div class="mini"><b>Structured evidence</b><span>brand, price, keyword, image signals</span></div>
-          <div class="arrow">→</div>
-          <div class="mini"><b>Human decision</b><span>AI recommends, reviewer decides</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene two-col" data-title="Scenario #1">
-      <div class="copy">
-        <span class="scenario-badge">Scenario #1</span>
-        <p class="eyebrow">Creation of Fraud Listing</p>
-        <h1>Seller creates listing.</h1>
-        <p class="subtitle">Use the live Copee seller centre on the right to create a product listing and trigger marketplace moderation.</p>
-      </div>
-      <div class="browser-shell" aria-label="Interactive Copee seller website">
-        <div class="browser-bar">
-          <span class="dot red"></span>
-          <span class="dot yellow"></span>
-          <span class="dot green"></span>
-          <div class="address">http://127.0.0.1:5173 · Copee Seller Centre</div>
-        </div>
-        <iframe src="http://127.0.0.1:5173" title="Copee Seller Centre"></iframe>
-      </div>
-    </section>
-
-    <section class="scene two-col" data-title="Agent Workflow">
-      <div class="copy">
-        <p class="eyebrow">Behind the scenes</p>
-        <h1>Agents inspect the change.</h1>
-        <p class="subtitle">InvestigationAgent calls deterministic tools. AssessmentAgent converts evidence into a risk score and a human-review recommendation.</p>
-      </div>
-      <div class="visual-card architecture">
-        <div class="handoff">
-          <div class="mini"><b>InvestigationAgent</b><span>gathers listing-change evidence</span></div>
-          <div class="arrow">→</div>
-          <div class="mini"><b>AssessmentAgent</b><span>scores risk without claiming guilt</span></div>
-          <div class="arrow">→</div>
-          <div class="mini"><b>Reviewer</b><span>approves or overrides action</span></div>
-        </div>
-        <div class="flow-row">
-          <article class="node">
-            <div class="node-icon">✓</div>
-            <h2>Brand injection</h2>
-            <p>Apple brand appears after original approval.</p>
-          </article>
-          <article class="node">
-            <div class="node-icon">✓</div>
-            <h2>Price anomaly</h2>
-            <p>Price drops from $30 to $12.</p>
-          </article>
-          <article class="node">
-            <div class="node-icon">✓</div>
-            <h2>Counterfeit terms</h2>
-            <p>OEM, 1:1, factory batch, mirror quality.</p>
-          </article>
-          <article class="node">
-            <div class="node-icon">✓</div>
-            <h2>Image swap</h2>
-            <p>Generic product image becomes branded packaging.</p>
-          </article>
-          <article class="node">
+          <article class="workflow-node result" data-beat-item="6" data-step="6">
             <div class="node-icon">95</div>
-            <h2>Critical risk</h2>
-            <p>Temporary suppression and human review.</p>
+            <h2>Verdict + human review</h2>
+            <p>Dashboard shows CRITICAL risk. AI recommends, human decides.</p>
           </article>
         </div>
       </div>
@@ -1001,21 +1032,53 @@
     const bar = document.getElementById("bar");
     const count = document.getElementById("count");
     let index = 0;
+    const beats = scenes.map(() => 0);
+
+    function maxBeat(scene) {
+      return Number(scene.dataset.maxBeat || 0);
+    }
 
     function render() {
       scenes.forEach((scene, sceneIndex) => {
-        scene.classList.toggle("active", sceneIndex === index);
+        const isActive = sceneIndex === index;
+        const beat = beats[sceneIndex];
+        scene.classList.toggle("active", isActive);
+        scene.classList.toggle("has-beat", isActive && beat > 0);
+        scene.dataset.currentBeat = String(beat);
+
+        scene.querySelectorAll("[data-beat-item]").forEach((item) => {
+          const itemBeat = Number(item.dataset.beatItem || 0);
+          item.classList.toggle("is-visible", isActive && itemBeat <= beat);
+          item.classList.toggle("is-focus", isActive && itemBeat === beat && beat > 0);
+          item.classList.toggle("is-past", isActive && itemBeat < beat);
+        });
+
+        scene.querySelectorAll("[data-path-step]").forEach((item) => {
+          const pathStep = Number(item.dataset.pathStep || 0);
+          item.classList.toggle("is-focus", isActive && pathStep === beat && beat > 1);
+        });
       });
       count.textContent = `${index + 1} / ${scenes.length}`;
       bar.style.width = `${((index + 1) / scenes.length) * 100}%`;
     }
 
     function next() {
+      const scene = scenes[index];
+      if (beats[index] < maxBeat(scene)) {
+        beats[index] += 1;
+        render();
+        return;
+      }
       index = Math.min(index + 1, scenes.length - 1);
       render();
     }
 
     function prev() {
+      if (beats[index] > 0) {
+        beats[index] -= 1;
+        render();
+        return;
+      }
       index = Math.max(index - 1, 0);
       render();
     }
