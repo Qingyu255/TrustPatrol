@@ -99,7 +99,7 @@ export function ListingsPage({ rows, isLoading, error, onOpenRow, onRefresh }: P
             Review Queue
           </Typography>
           <Typography sx={{ fontWeight: 800 }} variant="h4">
-            ADK investigation sessions
+            Agent Investigation sessions
           </Typography>
         </Box>
         <Tooltip title="Refresh sessions">
@@ -200,7 +200,7 @@ export function ListingsPage({ rows, isLoading, error, onOpenRow, onRefresh }: P
 
       <Paper elevation={0} sx={{ border: 1, borderColor: "divider", overflow: "hidden" }}>
         <TableContainer>
-          <Table aria-label="ADK sessions review queue" size="medium">
+          <Table aria-label="Agent sessions review queue" size="medium">
             <TableHead>
               <TableRow>
                 <TableCell>Listing</TableCell>

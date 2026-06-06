@@ -235,7 +235,7 @@ function ListingDetailsPage({
         </Tooltip>
         <Box sx={{ flexGrow: 1 }}>
           <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
-            ADK Session / {row.sessionId}
+            Agent Session / {row.sessionId}
           </Typography>
           <Typography sx={{ fontWeight: 900 }} variant="h4">
             {row.listing_id}
@@ -247,7 +247,7 @@ function ListingDetailsPage({
       {!caseFile && (
         <Alert severity={row.status === "error" ? "error" : "info"}>
           {row.status === "running"
-            ? "This ADK session does not have a final TrustPatrol case file yet."
+            ? "This Agent session does not have a final TrustPatrol case file yet."
             : "No final TrustPatrolRootAgent JSON was found for this session."}
         </Alert>
       )}
