@@ -1,10 +1,8 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
-import TimelineIcon from "@mui/icons-material/Timeline";
 import {
   Accordion,
   AccordionDetails,
@@ -16,8 +14,6 @@ import {
   Card,
   CardContent,
   Container,
-  Divider,
-  FormControlLabel,
   IconButton,
   LinearProgress,
   List,
@@ -25,31 +21,25 @@ import {
   ListItemIcon,
   ListItemText,
   Stack,
-  Switch,
   Toolbar,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ListingsPage, getChangedFields } from "./components/ListingsPage";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ListingsPage } from "./components/ListingsPage";
 import { TagChip, fieldTone, riskTone, type TagTone } from "./components/TagChip";
-import { runTrustPatrolLive } from "./lib/adkClient";
-import { demoScenarios } from "./lib/mockListings";
-import {
-  buildAssessmentReport,
-  buildInvestigationReport,
-  buildMockEvents,
-} from "./lib/mockPlayback";
+import { fetchReviewQueue, fetchSessionDetail } from "./lib/adkClient";
 import type {
   AgentEvent,
-  AssessmentReport,
-  DemoScenario,
-  InvestigationReport,
+  ChangedField,
+  LeadDecision,
+  ListingVersion,
+  Phase2CaseFile,
   ReviewDecision,
+  ReviewQueueRow,
   RiskLevel,
+  SpecialistFinding,
 } from "./types";
-
-const playbackDelayMs = 320;
 
 type EvidenceLane = {
   title: string;
@@ -59,117 +49,78 @@ type EvidenceLane = {
   tone: TagTone;
 };
 
-type CaseFile = {
+type CaseFileView = {
   lanes: EvidenceLane[];
   topReasons: string[];
   policyReasoning: string;
   falsePositiveGuardrail: string;
-  sellerTrustFacts: string[];
+  enforcementFacts: string[];
 };
 
 function App() {
-  const [selectedId, setSelectedId] = useState(demoScenarios[0].id);
+  const [rows, setRows] = useState<ReviewQueueRow[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"overview" | "details">("overview");
-  const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [liveMode, setLiveMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewDecision, setReviewDecision] = useState<ReviewDecision | null>(null);
-  const [runError, setRunError] = useState<string | null>(null);
-  const runTokenRef = useRef(0);
+  const [localEvents, setLocalEvents] = useState<Record<string, AgentEvent[]>>({});
 
-  const selectedScenario = useMemo(
-    () => demoScenarios.find((scenario) => scenario.id === selectedId) ?? demoScenarios[0],
-    [selectedId],
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.sessionId === selectedId) ?? null,
+    [rows, selectedId],
   );
 
-  const completedInvestigation = useMemo(
-    () => buildInvestigationReport(selectedScenario),
-    [selectedScenario],
-  );
-  const completedAssessment = useMemo(
-    () => buildAssessmentReport(selectedScenario),
-    [selectedScenario],
-  );
-
-  const visibleInvestigation = hasEvent(events, "investigation-report")
-    ? completedInvestigation
-    : pendingInvestigation(events);
-  const visibleAssessment = hasEvent(events, "assessment-report")
-    ? completedAssessment
-    : pendingAssessment(events);
-
-  const runAnalysis = useCallback(
-    async (scenario: DemoScenario) => {
-      const token = runTokenRef.current + 1;
-      runTokenRef.current = token;
-      setRunError(null);
-      setIsRunning(true);
-      setEvents([]);
-      setReviewDecision(null);
-
-      async function runMockPlayback() {
-        const playbackEvents = buildMockEvents(scenario);
-        for (const event of playbackEvents) {
-          await wait(playbackDelayMs);
-          if (runTokenRef.current !== token) return;
-          setEvents((current) => [...current, event]);
-        }
-      }
-
-      try {
-        if (liveMode) {
-          await runTrustPatrolLive(scenario, {
-            onEvent: (event) => {
-              if (runTokenRef.current === token) {
-                setEvents((current) => [...current, event]);
-              }
-            },
-          });
-        } else {
-          await runMockPlayback();
-        }
-      } catch (error) {
-        if (runTokenRef.current !== token) return;
-        setRunError(
-          error instanceof Error
-            ? `${error.message}. Falling back to mock playback.`
-            : "Live ADK run failed. Falling back to mock playback.",
-        );
-        await runMockPlayback();
-      } finally {
-        if (runTokenRef.current === token) setIsRunning(false);
-      }
-    },
-    [liveMode],
-  );
+  const refreshQueue = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const nextRows = await fetchReviewQueue();
+      setRows(nextRows);
+      setSelectedId((current) => current ?? nextRows[0]?.sessionId ?? null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not load ADK sessions.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (activeView === "details") {
-      void runAnalysis(selectedScenario);
-    }
-  }, [activeView, runAnalysis, selectedScenario]);
+    void refreshQueue();
+  }, [refreshQueue]);
 
-  function openScenario(scenario: DemoScenario) {
-    setSelectedId(scenario.id);
+  async function openRow(row: ReviewQueueRow) {
+    setSelectedId(row.sessionId);
+    setReviewDecision(null);
     setActiveView("details");
+    try {
+      const hydrated = await fetchSessionDetail(row.sessionId, row.userId);
+      setRows((current) => current.map((item) => (item.sessionId === row.sessionId ? hydrated : item)));
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not refresh session details.");
+    }
   }
 
   function onDecision(decision: ReviewDecision) {
+    if (!selectedId) return;
     setReviewDecision(decision);
-    setEvents((current) => [
+    setLocalEvents((current) => ({
       ...current,
-      {
-        id: `review-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        type: "human_review_decision",
-        title: "Human review decision recorded",
-        message: decision,
-      },
-    ]);
+      [selectedId]: [
+        ...(current[selectedId] ?? []),
+        {
+          id: `review-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          type: "human_review_decision",
+          title: "Human review decision recorded",
+          message: decision,
+        },
+      ],
+    }));
   }
 
   return (
@@ -203,33 +154,32 @@ function App() {
               Marketplace Trust & Safety Operations
             </Typography>
           </Box>
-          <Tooltip title="Listings">
-            <IconButton aria-label="Listings" color="primary" onClick={() => setActiveView("overview")}>
+          <Tooltip title="ADK sessions">
+            <IconButton aria-label="ADK sessions" color="primary" onClick={() => setActiveView("overview")}>
               <Inventory2Icon />
             </IconButton>
           </Tooltip>
-          <FormControlLabel
-            control={<Switch checked={liveMode} onChange={(event) => setLiveMode(event.target.checked)} />}
-            label="Live ADK"
-          />
         </Toolbar>
       </AppBar>
 
+      {isLoading && <LinearProgress />}
+
       <Container maxWidth="xl" sx={{ py: 3 }}>
-        {activeView === "overview" ? (
-          <ListingsPage scenarios={demoScenarios} onOpenScenario={openScenario} />
+        {activeView === "overview" || !selectedRow ? (
+          <ListingsPage
+            error={loadError}
+            isLoading={isLoading}
+            onOpenRow={openRow}
+            onRefresh={refreshQueue}
+            rows={rows}
+          />
         ) : (
           <ListingDetailsPage
-            assessmentReport={visibleAssessment}
-            events={events}
-            investigationReport={visibleInvestigation}
-            isRunning={isRunning}
-            liveMode={liveMode}
+            localEvents={localEvents[selectedRow.sessionId] ?? []}
             onBack={() => setActiveView("overview")}
             onDecision={onDecision}
             reviewDecision={reviewDecision}
-            runError={runError}
-            scenario={selectedScenario}
+            row={selectedRow}
           />
         )}
       </Container>
@@ -238,32 +188,27 @@ function App() {
 }
 
 type DetailsProps = {
-  scenario: DemoScenario;
-  events: AgentEvent[];
-  investigationReport: InvestigationReport;
-  assessmentReport: AssessmentReport;
-  isRunning: boolean;
-  liveMode: boolean;
+  row: ReviewQueueRow;
+  localEvents: AgentEvent[];
   reviewDecision: ReviewDecision | null;
-  runError: string | null;
   onBack: () => void;
   onDecision: (decision: ReviewDecision) => void;
 };
 
 function ListingDetailsPage({
-  scenario,
-  events,
-  investigationReport,
-  assessmentReport,
-  isRunning,
-  liveMode,
+  row,
+  localEvents,
   reviewDecision,
-  runError,
   onBack,
   onDecision,
 }: DetailsProps) {
-  const [previous, current] = scenario.versions;
-  const caseFile = buildCaseFile(scenario, investigationReport, assessmentReport);
+  const caseFile = row.caseFile;
+  const timeline = row.sourceCase?.timeline ?? [];
+  const previous = timeline.length >= 2 ? timeline[timeline.length - 2] : null;
+  const current = timeline.length >= 1 ? timeline[timeline.length - 1] : null;
+  const events = [...row.events, ...localEvents];
+  const view = caseFile ? buildCaseFileView(caseFile) : null;
+  const decision = caseFile?.lead_decision ?? pendingDecision(row);
 
   return (
     <Stack spacing={3}>
@@ -272,9 +217,9 @@ function ListingDetailsPage({
         spacing={2}
         sx={{ alignItems: { xs: "stretch", md: "center" } }}
       >
-        <Tooltip title="Back to listings">
+        <Tooltip title="Back to sessions">
           <IconButton
-            aria-label="Back to listings"
+            aria-label="Back to sessions"
             onClick={onBack}
             sx={{
               bgcolor: "white",
@@ -290,22 +235,24 @@ function ListingDetailsPage({
         </Tooltip>
         <Box sx={{ flexGrow: 1 }}>
           <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
-            Listing Violation Case / {scenario.category}
+            ADK Session / {row.sessionId}
           </Typography>
           <Typography sx={{ fontWeight: 900 }} variant="h4">
-            {scenario.listing_id}
+            {row.listing_id}
           </Typography>
         </Box>
-        <TagChip
-          label={isRunning ? "Analysis running" : liveMode ? "Live analysis complete" : "Mock analysis complete"}
-          tone={isRunning ? "blue" : "green"}
-        />
+        <TagChip label={row.status} tone={row.status === "completed" ? "green" : row.status === "error" ? "red" : "slate"} />
       </Stack>
 
-      {isRunning && <LinearProgress />}
-      {runError && <Alert severity="warning">{runError}</Alert>}
+      {!caseFile && (
+        <Alert severity={row.status === "error" ? "error" : "info"}>
+          {row.status === "running"
+            ? "This ADK session does not have a final TrustPatrol case file yet."
+            : "No final TrustPatrolRootAgent JSON was found for this session."}
+        </Alert>
+      )}
 
-      <DecisionHeader assessmentReport={assessmentReport} />
+      <DecisionHeader decision={decision} />
 
       <Box
         sx={{
@@ -316,36 +263,47 @@ function ListingDetailsPage({
         }}
       >
         <Stack spacing={2}>
-          <ChangeSummaryCard current={current} previous={previous} scenario={scenario} />
-          <SpecialistEvidenceReview events={events} isRunning={isRunning} liveMode={liveMode} />
+          <ChangeSummaryCard
+            changedFields={row.changed_fields}
+            current={current}
+            previous={previous}
+          />
+          <SpecialistEvidenceReview events={events} />
         </Stack>
 
         <Stack spacing={3}>
-          <DecisionSummary caseFile={caseFile} />
-          <EvidenceLanes lanes={caseFile.lanes} />
+          {view ? (
+            <>
+              <DecisionSummary view={view} />
+              <EvidenceLanes lanes={view.lanes} />
+            </>
+          ) : (
+            <Alert severity="info">Evidence lanes will appear after the ADK run completes.</Alert>
+          )}
         </Stack>
 
         <Stack spacing={3}>
           <AssessmentDecisionPanel
-            assessmentReport={assessmentReport}
-            caseFile={caseFile}
             decision={reviewDecision}
-            disabled={!assessmentReport.human_review_required && events.length > 0}
+            disabled={!decision.human_review_required || !caseFile}
+            leadDecision={decision}
             onDecision={onDecision}
+            view={view}
           />
+          {view && <EnforcementCard view={view} />}
         </Stack>
       </Box>
     </Stack>
   );
 }
 
-function DecisionHeader({ assessmentReport }: { assessmentReport: AssessmentReport }) {
+function DecisionHeader({ decision }: { decision: LeadDecision }) {
   return (
     <Card
       variant="outlined"
       sx={{
         background:
-          assessmentReport.risk_level === "CRITICAL"
+          decision.risk_level === "CRITICAL"
             ? "linear-gradient(135deg, #fff7ed 0%, #ffffff 62%)"
             : "background.paper",
       }}
@@ -357,18 +315,18 @@ function DecisionHeader({ assessmentReport }: { assessmentReport: AssessmentRepo
               Decision Header
             </Typography>
             <Typography sx={{ fontWeight: 950 }} variant="h4">
-              Listing Risk: {assessmentReport.risk_level}
+              Listing Risk: {decision.risk_level}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body1">
-              Recommended Action: {formatAction(assessmentReport.recommended_action)}
+              Recommended Action: {formatAction(decision.recommended_action)}
             </Typography>
           </Box>
           <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-            <RiskChip risk={assessmentReport.risk_level} />
-            <TagChip label={`Confidence ${Math.round(assessmentReport.confidence * 100)}%`} tone="blue" />
+            <RiskChip risk={decision.risk_level} />
+            <TagChip label={`Confidence ${Math.round(decision.confidence * 100)}%`} tone="blue" />
             <TagChip
-              label={assessmentReport.human_review_required ? "Human Review Required" : "Human Review Optional"}
-              tone={assessmentReport.human_review_required ? "orange" : "green"}
+              label={decision.human_review_required ? "Human Review Required" : "Human Review Optional"}
+              tone={decision.human_review_required ? "orange" : "green"}
             />
           </Stack>
         </Stack>
@@ -380,18 +338,33 @@ function DecisionHeader({ assessmentReport }: { assessmentReport: AssessmentRepo
 function ChangeSummaryCard({
   previous,
   current,
-  scenario,
+  changedFields,
 }: {
-  previous: DemoScenario["versions"][number];
-  current: DemoScenario["versions"][number];
-  scenario: DemoScenario;
+  previous: ListingVersion | null;
+  current: ListingVersion | null;
+  changedFields: ChangedField[];
 }) {
+  if (!previous || !current) {
+    return (
+      <Card variant="outlined">
+        <CardContent>
+          <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
+            Change Summary
+          </Typography>
+          <Alert severity="info" sx={{ mt: 1 }}>
+            Full v1/v2 listing timeline was not found in this ADK session.
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const fields = [
-    ["title", previous.title, current.title],
-    ["description", previous.description, current.description],
+    ["title", previous.title ?? "-", current.title ?? "-"],
+    ["description", previous.description ?? "-", current.description ?? "-"],
     ["brand", previous.brand ?? "None", current.brand ?? "None"],
-    ["price", `$${previous.price}`, `$${current.price}`],
-    ["image", previous.image_id, current.image_id],
+    ["price", formatPrice(previous.price), formatPrice(current.price)],
+    ["image", previous.image_id ?? "-", current.image_id ?? "-"],
   ];
 
   return (
@@ -404,11 +377,11 @@ function ChangeSummaryCard({
                 Change Summary
               </Typography>
               <Typography sx={{ fontWeight: 850 }} variant="h6">
-                v1 approval to v2 edit
+                v{previous.version} to v{current.version}
               </Typography>
             </Box>
             <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75, justifyContent: "flex-end" }}>
-              {getChangedFields(scenario).map((field) => (
+              {changedFields.map((field) => (
                 <TagChip key={field} label={field} tone={fieldTone(field)} />
               ))}
             </Stack>
@@ -440,15 +413,7 @@ function ChangeSummaryCard({
   );
 }
 
-function SpecialistEvidenceReview({
-  events,
-  isRunning,
-  liveMode,
-}: {
-  events: AgentEvent[];
-  isRunning: boolean;
-  liveMode: boolean;
-}) {
+function SpecialistEvidenceReview({ events }: { events: AgentEvent[] }) {
   return (
     <Accordion disableGutters variant="outlined">
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -457,15 +422,15 @@ function SpecialistEvidenceReview({
             Specialist Evidence Review
           </Typography>
           <Typography color="text.secondary" variant="caption">
-            {isRunning ? "Packaging evidence..." : `${events.length} runtime events available`}
+            {events.length} runtime events available
           </Typography>
         </Box>
-        <TagChip label={liveMode ? "ADK" : "Mock"} tone={liveMode ? "blue" : "slate"} />
+        <TagChip label="ADK" tone="blue" />
       </AccordionSummary>
       <AccordionDetails>
         <Stack spacing={1}>
           {events.length === 0 ? (
-            <Alert severity="info">Evidence review starts automatically when this case opens.</Alert>
+            <Alert severity="info">No ADK events were returned for this session.</Alert>
           ) : (
             events.map((event) => (
               <Box
@@ -499,7 +464,7 @@ function SpecialistEvidenceReview({
   );
 }
 
-function DecisionSummary({ caseFile }: { caseFile: CaseFile }) {
+function DecisionSummary({ view }: { view: CaseFileView }) {
   return (
     <Card variant="outlined">
       <CardContent>
@@ -513,8 +478,8 @@ function DecisionSummary({ caseFile }: { caseFile: CaseFile }) {
             </Typography>
           </Box>
           <List dense>
-            {caseFile.topReasons.map((reason, index) => (
-              <ListItem key={reason} sx={{ alignItems: "flex-start" }}>
+            {view.topReasons.map((reason, index) => (
+              <ListItem key={`${reason}-${index}`} sx={{ alignItems: "flex-start" }}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <TagChip label={String(index + 1)} tone="orange" />
                 </ListItemIcon>
@@ -522,6 +487,7 @@ function DecisionSummary({ caseFile }: { caseFile: CaseFile }) {
               </ListItem>
             ))}
           </List>
+          <Alert severity="info">{view.policyReasoning}</Alert>
         </Stack>
       </CardContent>
     </Card>
@@ -542,13 +508,8 @@ function EvidenceLanes({ lanes }: { lanes: EvidenceLane[] }) {
             </Typography>
           </Box>
           <Stack spacing={1.25} sx={{ maxHeight: 560, overflowY: "auto", pr: 1 }}>
-            {lanes.map((lane) => (
-              <Accordion
-                defaultExpanded={lane.title === "Brand & Policy Evidence"}
-                disableGutters
-                key={lane.title}
-                variant="outlined"
-              >
+            {lanes.map((lane, index) => (
+              <Accordion defaultExpanded={index === 0} disableGutters key={lane.title} variant="outlined">
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Stack spacing={0.75} sx={{ width: "100%" }}>
                     <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
@@ -584,14 +545,14 @@ function EvidenceLanes({ lanes }: { lanes: EvidenceLane[] }) {
 }
 
 function AssessmentDecisionPanel({
-  caseFile,
-  assessmentReport,
+  view,
+  leadDecision,
   decision,
   disabled,
   onDecision,
 }: {
-  caseFile: CaseFile;
-  assessmentReport: AssessmentReport;
+  view: CaseFileView | null;
+  leadDecision: LeadDecision;
   decision: ReviewDecision | null;
   disabled: boolean;
   onDecision: (decision: ReviewDecision) => void;
@@ -618,21 +579,20 @@ function AssessmentDecisionPanel({
           >
             <Box>
               <Typography sx={{ fontWeight: 950, lineHeight: 1 }} variant="h2">
-                {assessmentReport.risk_score}
+                {leadDecision.final_risk_score}
               </Typography>
-              <RiskChip risk={assessmentReport.risk_level} />
+              <RiskChip risk={leadDecision.risk_level} />
             </Box>
             <Typography color="text.secondary" variant="body2">
-              {formatAction(assessmentReport.recommended_action)}
+              {formatAction(leadDecision.recommended_action)}
             </Typography>
           </Box>
-          <Alert severity="warning">
-            {assessmentReport.risk_level === "CRITICAL"
-              ? "Recommended because multiple evidence lanes point to counterfeit/IP infringement risk."
-              : "Recommended action follows the current evidence strength."}
+          <Alert severity={leadDecision.risk_level === "CRITICAL" ? "warning" : "info"}>
+            {leadDecision.decision_reasoning[0] ?? "Recommended action follows the current evidence strength."}
           </Alert>
           <Typography color="text.secondary" variant="caption">
-            {caseFile.falsePositiveGuardrail}
+            {view?.falsePositiveGuardrail ??
+              "This is not a final guilt finding. Seller verification, appeal evidence, or reviewer override can change the outcome."}
           </Typography>
           <Stack spacing={1}>
             <Button
@@ -673,154 +633,129 @@ function AssessmentDecisionPanel({
   );
 }
 
-function buildCaseFile(
-  scenario: DemoScenario,
-  investigation: InvestigationReport,
-  assessment: AssessmentReport,
-): CaseFile {
-  const [previous, current] = scenario.versions;
-  const changedFields = getChangedFields(scenario);
-  const sellerTrustFacts =
-    scenario.id === "brand_injection"
-      ? ["Seller account is new to the category.", "Seller has 2 prior suspicious edit patterns.", "Repeated post-approval edits increase review priority."]
-      : scenario.id === "replica_reveal"
-        ? ["Seller has repeated luxury-category edits.", "Prior listing was monitored for similar language."]
-        : ["No high-priority seller trust flags in the mock case."];
+function EnforcementCard({ view }: { view: CaseFileView }) {
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Typography color="primary" sx={{ fontWeight: 850 }} variant="overline">
+          Enforcement Context
+        </Typography>
+        <List dense>
+          {view.enforcementFacts.map((fact) => (
+            <ListItem key={fact} sx={{ px: 0 }}>
+              <ListItemIcon sx={{ minWidth: 34 }}>
+                <FactCheckIcon color="primary" fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary={fact} />
+            </ListItem>
+          ))}
+        </List>
+      </CardContent>
+    </Card>
+  );
+}
 
-  const topReasons =
-    scenario.id === "brand_injection"
-      ? [
-          "Brand Apple was added after approval.",
-          "Price dropped 60%.",
-          "\"OEM\", \"1:1\", and \"mirror quality\" appeared in listing text.",
-          "Product image changed to branded packaging.",
-          "Seller has prior suspicious edits.",
-        ]
-      : [
-          ...investigation.evidence.slice(0, 4),
-          sellerTrustFacts[0],
-        ].filter(Boolean);
+function buildCaseFileView(caseFile: Phase2CaseFile): CaseFileView {
+  const decision = caseFile.lead_decision;
+  const timelineFacts = timelineFactsFromCase(caseFile);
+  const lanes = [
+    ...caseFile.specialist_findings.map(evidenceLaneFromFinding),
+    {
+      title: "Timeline Evidence",
+      severity: riskFromChangedFields(caseFile.timeline_diff.changed_fields),
+      tone: "teal" as TagTone,
+      summary: caseFile.timeline_diff.summary,
+      facts: timelineFacts,
+    },
+  ];
 
   return {
-    topReasons,
-    sellerTrustFacts,
+    lanes,
+    topReasons: decision.top_evidence.length ? decision.top_evidence : decision.decision_reasoning,
     policyReasoning:
-      assessment.risk_level === "CRITICAL"
-        ? "The evidence maps to counterfeit/IP infringement and prohibited-listing risk: brand injection after approval, suspicious authenticity terms, a sharp price drop, and changed visual packaging. Temporary suppression plus human review is proportionate because it protects buyers while preserving a reviewer decision point."
-        : "The recommendation is calibrated to the available evidence. Lower-confidence or isolated signals should be handled with monitoring or seller verification before punitive action.",
+      decision.policy_buckets.length || decision.decision_reasoning.length
+        ? [...decision.policy_buckets, ...decision.decision_reasoning].join(" ")
+        : "The recommendation is calibrated to the available evidence.",
     falsePositiveGuardrail:
       "This is not a final guilt finding. Seller verification, appeal evidence, or reviewer override can reverse, narrow, or downgrade the action to avoid wrongly penalizing legitimate sellers.",
-    lanes: [
-      {
-        title: "Brand & Policy Evidence",
-        severity: investigation.signals.brand_injection || investigation.signals.counterfeit_keywords.length ? "HIGH" : "LOW",
-        tone: investigation.signals.brand_injection || investigation.signals.counterfeit_keywords.length ? "purple" : "green",
-        summary: "Checks whether the edit introduced brand or counterfeit/IP infringement indicators after approval.",
-        facts: [
-          investigation.signals.brand_added
-            ? `Brand added after approval: ${investigation.signals.brand_added}.`
-            : "No new brand was added.",
-          investigation.signals.counterfeit_keywords.length
-            ? `Counterfeit-associated terms: ${investigation.signals.counterfeit_keywords.join(", ")}.`
-            : "No newly introduced counterfeit terms.",
-          "Policy framing: prohibited listings, IP infringement, and counterfeit listings may require removal, suppression, or seller verification.",
-        ],
-      },
-      {
-        title: "Pricing Evidence",
-        severity: investigation.signals.price_anomaly ? "HIGH" : "LOW",
-        tone: investigation.signals.price_anomaly ? "amber" : "green",
-        summary: "Checks whether the listing price changed in a way that increases counterfeit risk.",
-        facts: [
-          `Previous price: $${previous.price}. Current price: $${current.price}.`,
-          investigation.signals.price_drop_pct
-            ? `Price dropped ${investigation.signals.price_drop_pct}%.`
-            : "No material price drop detected.",
-          "Large post-approval discounts can strengthen counterfeit-risk signals when paired with brand and text changes.",
-        ],
-      },
-      {
-        title: "Visual Evidence",
-        severity: investigation.signals.image_swapped ? "MEDIUM" : "LOW",
-        tone: investigation.signals.image_swapped ? "blue" : "green",
-        summary: "Checks whether the listing image changed after approval.",
-        facts: [
-          `Previous image ID: ${previous.image_id}.`,
-          `Current image ID: ${current.image_id}.`,
-          investigation.signals.image_swapped
-            ? "Image changed to branded packaging in the mock evidence."
-            : "Image did not materially change.",
-        ],
-      },
-      {
-        title: "Seller Trust Evidence",
-        severity: sellerTrustFacts.length > 1 ? "MEDIUM" : "LOW",
-        tone: sellerTrustFacts.length > 1 ? "orange" : "green",
-        summary: "Adds lightweight seller context so reviewers can avoid both buyer harm and false positives.",
-        facts: sellerTrustFacts,
-      },
-      {
-        title: "Timeline Evidence",
-        severity: investigation.signals.post_approval_edit ? "MEDIUM" : "LOW",
-        tone: investigation.signals.post_approval_edit ? "teal" : "green",
-        summary: "Focuses on what changed after the listing was already approved.",
-        facts: [
-          investigation.signals.post_approval_edit
-            ? "Listing was edited after approval."
-            : "No post-approval edit detected.",
-          changedFields.length ? `Changed fields: ${changedFields.join(", ")}.` : "No meaningful changed fields.",
-          "Post-approval drift is the core TrustPatrol detection pattern.",
-        ],
-      },
+    enforcementFacts: [
+      `Review queue: ${caseFile.enforcement_action_log.review_queue}.`,
+      `Seller message: ${caseFile.enforcement_action_log.seller_message_summary}`,
+      `Audit log: ${caseFile.enforcement_action_log.audit_log_summary}`,
+      ...caseFile.enforcement_action_log.actions.map((action) =>
+        `${formatAction(action.action)}: ${action.reason ?? action.status}`,
+      ),
     ],
   };
+}
+
+function evidenceLaneFromFinding(finding: SpecialistFinding): EvidenceLane {
+  return {
+    title: agentTitle(finding.agent),
+    severity: finding.risk_level,
+    tone: riskTone(finding.risk_level),
+    summary: finding.finding,
+    facts: [...finding.evidence, finding.uncertainty].filter(Boolean),
+  };
+}
+
+function timelineFactsFromCase(caseFile: Phase2CaseFile): string[] {
+  const signals = caseFile.timeline_diff.signals;
+  const facts = [
+    caseFile.timeline_diff.changed_fields.length
+      ? `Changed fields: ${caseFile.timeline_diff.changed_fields.join(", ")}.`
+      : "No material listing-field changes detected.",
+  ];
+  if (signals.brand_added) facts.push(`Brand changed from ${signals.previous_brand ?? "None"} to ${signals.brand_added_value}.`);
+  if ((signals.price_drop_pct ?? 0) > 0) facts.push(`Price dropped ${signals.price_drop_pct}%.`);
+  if ((signals.counterfeit_keywords ?? []).length) facts.push(`Replica-associated terms: ${signals.counterfeit_keywords?.join(", ")}.`);
+  if (signals.image_swapped) facts.push("Image changed after approval.");
+  if (signals.post_approval_edit) facts.push("Listing was edited after approval.");
+  return facts;
+}
+
+function pendingDecision(row: ReviewQueueRow): LeadDecision {
+  return {
+    agent: "LeadAdjudicatorAgent",
+    status: row.status,
+    final_risk_score: row.final_risk_score ?? 0,
+    risk_level: row.risk_level,
+    confidence: 0,
+    recommended_action: row.recommended_action,
+    policy_buckets: [],
+    top_evidence: [],
+    agent_consensus: {},
+    decision_reasoning: [],
+    human_review_required: false,
+  };
+}
+
+function riskFromChangedFields(fields: ChangedField[]): RiskLevel {
+  if (fields.includes("brand") || fields.includes("keywords")) return "HIGH";
+  if (fields.includes("price") || fields.includes("image")) return "MEDIUM";
+  return fields.length ? "LOW" : "LOW";
 }
 
 function RiskChip({ risk }: { risk: RiskLevel }) {
   return <TagChip label={risk} tone={riskTone(risk)} />;
 }
 
-function hasEvent(events: AgentEvent[], eventId: string) {
-  return events.some((event) => event.id === eventId);
+function agentTitle(agent: string) {
+  return agent
+    .replace("Agent", " Evidence")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace("Brand Protection", "Brand & Policy")
+    .replace("Visual Evidence Evidence", "Visual Evidence")
+    .replace("Seller Trust", "Seller Trust")
+    .trim();
 }
 
-function pendingInvestigation(events: AgentEvent[]): InvestigationReport {
-  return {
-    status: events.some((event) => event.agent === "InvestigationAgent") ? "running" : "pending",
-    signals: {
-      brand_injection: false,
-      brand_added: null,
-      price_drop_pct: 0,
-      price_anomaly: false,
-      counterfeit_keywords: [],
-      image_swapped: false,
-      text_fields_unchanged: false,
-      post_approval_edit: false,
-    },
-    evidence: [],
-    tools_called: [],
-    uncertainty: "TrustPatrol is analyzing the listing timeline.",
-  };
-}
-
-function pendingAssessment(events: AgentEvent[]): AssessmentReport {
-  return {
-    status: events.some((event) => event.agent === "AssessmentAgent") ? "running" : "pending",
-    risk_score: 0,
-    risk_level: "PENDING",
-    confidence: 0,
-    recommended_action: "PENDING_AGENT_ASSESSMENT",
-    reasoning: [],
-    human_review_required: false,
-  };
+function formatPrice(value?: number) {
+  return typeof value === "number" ? `$${value}` : "-";
 }
 
 function formatAction(value: string) {
   return value.replaceAll("_", " ");
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export default App;
