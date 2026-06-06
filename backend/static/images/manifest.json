@@ -1,0 +1,35 @@
+{
+  "note": "Phase 2 image scoring is deterministic from image_metadata. These URLs are demo assets for frontend presentation only.",
+  "assets": {
+    "generic_handbag_01": {
+      "local_path": "backend/static/images/generic_handbag_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Handbag_(48708604918).jpg",
+      "label": "Generic leather handbag"
+    },
+    "designer_bag_packaging_01": {
+      "local_path": "backend/static/images/designer_bag_packaging_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Bag_(Handbag)_(48709937677).jpg",
+      "label": "Luxury-style bag packaging placeholder"
+    },
+    "generic_shoes_01": {
+      "local_path": "backend/static/images/generic_shoes_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Marathon_shoes.jpg",
+      "label": "Generic sports shoes"
+    },
+    "branded_luxury_shoes_box_01": {
+      "local_path": "backend/static/images/branded_luxury_shoes_box_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Shoe_box.jpg",
+      "label": "Branded packaging placeholder"
+    },
+    "wallet_photo_01": {
+      "local_path": "backend/static/images/wallet_photo_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Leather_wallets_03.JPG",
+      "label": "Leather wallet"
+    },
+    "watch_strap_01": {
+      "local_path": "backend/static/images/watch_strap_01.jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Watch_strap_of_Omega_Seamaster_chrono.jpg",
+      "label": "Watch strap"
+    }
+  }
+}
